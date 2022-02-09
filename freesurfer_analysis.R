@@ -4,6 +4,7 @@ setwd("/mnt/projects/VIA11/FREESURFER/Stats/Data")
 #load packages
 library(data.table)
 library(ggplot2)
+library(ggdist)
 library(gridExtra)
 library(lmerTest)
 library(lme4)
@@ -15,20 +16,22 @@ library(lsmeans)
 library(grid)
 library(Cairo)
 library(grDevices)
-
-install.packages("devtools")
-remotes::install_github("yaweige/ggpcp", build_vignettes = TRUE)
 library(ggpcp)
 
+#install.packages("devtools")
+#remotes::install_github("yaweige/ggpcp", build_vignettes = TRUE)
+#library(ggpcp)
+
 #load data
-data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20211210.csv", header = TRUE, sep = ",", dec = ".")
+data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
 
 #inspect the head of data and summary
 head(data_csv)
 summary(data_csv)
 
 #filter the data with include variable
-data_csv_filtered <- na.omit(data_csv[c(data_csv$Include_FS_studies == 1),])
+data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
+data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
 
 #tell r which variables are factors
 datab = data_csv_filtered
@@ -43,10 +46,12 @@ group_color = c("green", "blue", "red")
 
 y_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
 
-p = list()
+setwd("/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures")
+
+p_inter = list()
 
 for (i in seq(1,length(y_vars))){
-p[[i]]=with(datab,
+p_inter[[i]]=with(datab,
   ggplot() +
   aes_string(x = "group", color = "sex", group = "sex", y = y_vars[i]) +
   geom_jitter(width = 0.1, size=0.1) + 
@@ -57,7 +62,8 @@ p[[i]]=with(datab,
 )
 }
 
-grid.arrange(grobs=p)
+ps=grid.arrange(grobs=p_inter)
+ggsave(paste("group:sex_interaction_check",".png",sep=""),ps,width = 10,height = 10)
 
 
 ### whole brain measure models 
@@ -87,14 +93,17 @@ anova(model_bvol)
 summary(model_bvol)
 
 model_cvol = lmer(CortexVol ~ group*sex + age + (1| site), data=datab)
+model_cvol = lm(CortexVol ~ group*sex + age + site, data=datab)
 ranova(model_cvol)
 anova(model_cvol)
 
 model_area = lmer(total_area ~ group*sex + age + (1| site), data=datab)
+model_area = lm(total_area ~ group*sex + age + site, data=datab)
 ranova(model_area)
 anova(model_area)
 
 model_mt = lmer(mean_thickness ~ group + sex  + age + (1| site), data=datab)
+model_mt = lm(mean_thickness ~ group + sex  + age + site, data=datab)
 ranova(model_mt)
 anova(model_mt)
 
@@ -115,7 +124,7 @@ model_vars = c(model_vars,"mean_thickness")
 
 
 #####################
-#run multiple models GROUP:AGE INTERACTION
+#run multiple models to be able to plot GROUP:AGE INTERACTION
 
 model_vars = c("BrainTotalVol", "CortexVol", "total_area", "eICV_samseg")
 model = list()
@@ -148,7 +157,8 @@ for (i in seq(1,length(model))){
 
 
 ### model diagnostics 
-par(mfrow=c(1,3))
+par(mar=c(1,1,1,1))
+par(mfrow=c(length(model_vars),3),mai=c(0.3,0.3,0.3,0.3))
 for (i in seq(1,length(model_vars))){
   mixed_res = rstudent(model[[i]])
   qqnorm(mixed_res,main = NULL)
@@ -156,13 +166,16 @@ for (i in seq(1,length(model_vars))){
   plot(mixed_res ~ fitted(model[[i]]),xlab="Fitted",ylab="Standardized residuals")
   plot(cooks.distance(model[[i]]), type = "p", pch = 20,ylab="Cooks distance")
   
-  mtext(paste("Model diagnostics for",model_vars[[i]]), side = 3, line = -2, outer = TRUE)
+  mtext(paste("Model diagnostics for",model_vars[[i]]), side = 3, line = -12.9*(i-1)-2, outer = TRUE)
 }
+par(mfrow=c(1,1))
 
 
 ######################################
 #    run models on each region
 ######################################
+
+setwd("/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral")
 
 # extract model yvars 
 
@@ -201,10 +214,10 @@ for (i in seq(1,length(col_names_list[[mm]]))){
   dft$NORM_region_measure_h = ( dft$VALUE_region_measure_h[ dft$NAME_region_measure_h  == col_names_list[[mm]][i] ] - avg ) / avg
 }
 
-p = list()
-              
+p_var = list()
+
 #plot data
-p[[1]]=with(dft,
+p_var[[1]]=with(dft,
      ggplot() +
        aes_string(x = "NAME_region_measure_h", color = "group", group = "group", y = "VALUE_region_measure_h") +
        geom_jitter(width = 0.4, size=0.1) + 
@@ -213,24 +226,53 @@ p[[1]]=with(dft,
        scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) + 
        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
        labs(y = paste("Region",m), x = "brain region") +
-       ggtitle("lh_area")
+       ggtitle(paste(mm))
 )
 
-p[[2]]=with(dft,
-            ggplot() +
-              aes(x = factor(NAME_region_measure_h), color = group, group = group, y = 100*NORM_region_measure_h) +
-              see::geom_violinhalf(aes(group = NAME_region_measure_h)) + 
+
+p_var[[2]]= with(dft,
+              ggplot() +
+              aes(x = factor(NAME_region_measure_h), y = 100*NORM_region_measure_h, color = group) +
+              #aes(x = factor(NAME_region_measure_h), color = group, group = group, y = 100*NORM_region_measure_h) +
+              #see::geom_violinhalf(aes(group = NAME_region_measure_h)) + 
+              geom_violin(position = "identity",alpha=0.3) +
+              #ggdist::stat_halfeye(adjust = .5, width = .7, .width = 0, justification = -.2, point_colour = NA) +
               geom_jitter(width = 0.4, size=0.1) + 
               geom_hline(yintercept = 0) + 
-              stat_summary(fun = mean, geom = "point",size=2) +
-              stat_summary(fun = mean, geom = "point",size=2,pch=21,colour="black") +
+              stat_summary(fun = mean, geom = "point",size=3,aes(colour = group)) +
+              #stat_summary(fun = mean, geom = "point",size=3,pch=21) +
               theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
               labs(y = "Percent difference from mean [%]", x = "brain region") +
-              ggtitle("lh_area")
+              ggtitle(paste(mm))
 )
+ps=grid.arrange(grobs=p_var)
+ggsave(paste("original_unit_all_region_variance",mm,".png",sep=""),ps,width = 14,height = 10)
 
-grid.arrange(grobs=p)
+ps=grid.arrange(p_var[[2]])
+ggsave(paste("all_region_variance",mm,".png",sep=""),ps,width = 14,height = 6)
 
+
+p_var2 = list()
+half_names = c("bankssts","caudalanteriorcingulate","caudalmiddlefrontal","cuneus","entorhinal",
+               "fusiform","inferiorparietal","inferiortemporal","isthmuscingulate","lateraloccipital",
+               "lateralorbitofrontal","lingual","medialorbitofrontal","middletemporal","parahippocampal",
+               "paracentral","parsopercularis")
+
+half_names2 = c("parsorbitalis","parstriangularis","pericalcarine","postcentral","posteriorcingulate",
+                "precentral","precuneus","rostralanteriorcingulate","rostralmiddlefrontal",
+                "superiorfrontal","superiorparietal","superiortemporal","supramarginal","frontalpole",
+                "temporalpole","transversetemporal","insula")
+
+dft2 = dft[!grepl(half_names[1], dft$NAME_region_measure_h,fixed=TRUE),]
+dft3 = dft[!grepl(half_names2[1], dft$NAME_region_measure_h,fixed=TRUE),]
+
+for (i in seq(2,length(half_names))){
+  dft2 = dft2[!grepl(half_names[i], dft2$NAME_region_measure_h,fixed=TRUE),]
+  dft3 = dft3[!grepl(half_names2[i], dft3$NAME_region_measure_h,fixed=TRUE),]
+}
+
+
+setwd("/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/site_random")
 
 
 ###### make inference with models
@@ -244,6 +286,7 @@ DFs_glob = data.frame()
 
 for (i in seq(1,2)){
   for (j in seq(1,3)){
+    print(paste(h[i],m[j]))
     model_yvars = col_names_list[[paste(h[i],m[j],sep = "_")]] 
     for (k in seq(1,length(model_yvars))){
       for (mi in seq(1,2)){
@@ -251,13 +294,16 @@ for (i in seq(1,2)){
       if (mi == 1){
         #no global measure model
         f = paste(model_yvars[k],"~","-1","+","group*sex","+","age","+","(1| site)")
-        models[[h[i]]][[m[j]]][[model_yvars[k]]] = lmer(f,data=datab)
-        xvars = attributes(anova(models[[h[i]]][[m[j]]][[model_yvars[k]]]))$row.names
-
-        if (anova(models[[h[i]]][[m[j]]][[model_yvars[k]]])$"Pr(>F)"[xvars=="group:sex"] > 0.05){
-          models[[h[i]]][[m[j]]][[model_yvars[k]]] = update(models[[h[i]]][[m[j]]][[model_yvars[k]]],~.-group:sex)
-        } 
+        models[[h[i]]][[m[j]]][[model_yvars[k]]] = lmer(f,data=datab,REML=FALSE)
+        
         model_ana = models[[h[i]]][[m[j]]][[model_yvars[k]]]
+        xvars = attributes(anova(model_ana))$row.names
+        pv_group_sex = anova(model_ana)$"Pr(>F)"[xvars=="group:sex"]
+        
+        if (anova(model_ana)$"Pr(>F)"[xvars=="group:sex"] > 0.05){
+          model_ana = update(model_ana,~.-group:sex)
+        } 
+        models[[h[i]]][[m[j]]][[model_yvars[k]]] = model_ana
         
       }
       else {
@@ -271,19 +317,19 @@ for (i in seq(1,2)){
         else if (m[j] == "volume"){
           f2 = paste(model_yvars[k],"~","-1","+","group*sex","+","age","+","BrainTotalVol","+","(1| site)")
         }
-        models_glob[[h[i]]][[m[j]]][[model_yvars[k]]] = lmer(f2,data=datab)
-        xvars = attributes(anova(models_glob[[h[i]]][[m[j]]][[model_yvars[k]]]))$row.names
-        
-        if (anova(models_glob[[h[i]]][[m[j]]][[model_yvars[k]]])$"Pr(>F)"[xvars=="group:sex"] > 0.05){
-          models_glob[[h[i]]][[m[j]]][[model_yvars[k]]] = update(models_glob[[h[i]]][[m[j]]][[model_yvars[k]]],~.-group:sex)
-        }  
-        
+        models_glob[[h[i]]][[m[j]]][[model_yvars[k]]] = lmer(f2,data=datab,REML=FALSE)
         model_ana = models_glob[[h[i]]][[m[j]]][[model_yvars[k]]]
-      }
+        xvars = attributes(anova(model_ana))$row.names
+        pv_group_sex = anova(model_ana)$"Pr(>F)"[xvars=="group:sex"]
         
-      xvars = attributes(anova(model_ana))$row.names
-      pv_group_sex = anova(model_ana)$"Pr(>F)"[xvars=="group:sex"]
+        if (anova(model_ana)$"Pr(>F)"[xvars=="group:sex"] > 0.05){
+          model_ana = update(model_ana,~.-group:sex)
+        } 
+        models_glob[[h[i]]][[m[j]]][[model_yvars[k]]] = model_ana
+      }
       
+        
+      #use the above defined model_ana 
       ls = lsmeans(model_ana,pairwise~"group", by = "sex")
       c = ls$contrasts
       
@@ -357,8 +403,8 @@ for (i in seq(1,2)){
         DFs = rbindlist(list(DFs, rws1))
       }
       else{
-        model_diff_pv = anova(models_glob[[h[i]]][[m[j]]][[model_yvars[k]]],models[[h[i]]][[m[j]]][[model_yvars[k]]])$"Pr(>Chisq)"[2]
-        rw = append(rw,model_diff_pv)
+        model_LRT_pv = anova(models_glob[[h[i]]][[m[j]]][[model_yvars[k]]],models[[h[i]]][[m[j]]][[model_yvars[k]]],refit=FALSE)$"Pr(>Chisq)"[2]
+        rw = append(rw,model_LRT_pv)
         
         DF_glob = rbindlist(list(DF_glob, rw))
         DFs_glob = rbindlist(list(DFs_glob, rws0))
@@ -409,37 +455,24 @@ DFs$sex = as.factor(DFs$sex)
 DFs_glob$sex = as.factor(DFs_glob$sex)
 
 
-#plot anova group effect
-p = list()
-df = DF_glob
-
-for (i in seq(1,3)){
-  for (j in seq(1,2)){
-    df1 = df[grepl(paste("^",h[j],sep = ""), df$model_yvar),]
-    df1 = df1[grepl(paste("_",m[i],sep = ""), df1$model_yvar),]
-    
-    p[[i*2+j-2]] =ggplot(df1, aes(as.factor( model_yvar ), as.numeric(Group_p_value))) + 
-                  geom_point() + 
-                  geom_hline(yintercept = 0.05) + 
-                  labs(y = "Group anova p-value", x = "brain region") +
-                  ggtitle(paste(m[i],h[j]) ) +
-                  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-  }
-}
-
-grid.arrange(grobs=p)
-
 
 #group sex interaction
-p = list()
-df = DF_glob
+glob = c("Model WITHOUT global var","Model WITH global var")
 
+DF_list = list()
+DF_list[[1]] = DF
+DF_list[[2]] = DF_glob
+
+
+for (g in seq(1,2)){
+  pgs = list()
+  df = DF_list[[g]]
 for (i in seq(1,3)){
   for (j in seq(1,2)){
     df1 = df[grepl(paste("^",h[j],sep = ""), df$model_yvar),]
     df1 = df1[grepl(paste("_",m[i],sep = ""), df1$model_yvar),]
     
-    p[[i*2+j-2]] =ggplot(df1, aes(as.factor( model_yvar ), as.numeric(Group_sex_p_value))) + 
+    pgs[[i*2+j-2]] =ggplot(df1, aes(as.factor( model_yvar ), as.numeric(Group_sex_p_value))) + 
       geom_point() + 
       geom_hline(yintercept = 0.05) + 
       labs(y = "G/S anova p-value", x = "brain region") +
@@ -447,16 +480,18 @@ for (i in seq(1,3)){
       theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
   }
 }
-
-grid.arrange(grobs=p)
+  top_title = paste(glob[g])
+  ps=grid.arrange(grobs=pgs,top=textGrob(top_title,gp=gpar(fontsize=20)))
+  ggsave(paste(glob[g],"group:sex_interaction_pvalue",".png",sep=""),ps,width = 10,height = 12)
+}
 
 
 #sanity check above results with manual models 
-model_test1 = lmer(rh_parahippocampal_area ~ group*sex + age + (1| site), data=datab)
+model_test1 = lmer(rh_parahippocampal_area ~ group*sex + age + (1| site), data=datab,REML=FALSE)
 DF$Group_sex_p_value[grepl(paste("rh_parahippocampal_area"), DF$model_yvar)]
 anova(model_test1)
 
-model_test2 = lmer(rh_parahippocampal_area ~ group*sex + age + total_area + (1| site), data=datab)
+model_test2 = lmer(rh_parahippocampal_area ~ group*sex + age + total_area + (1| site), data=datab,REML=FALSE)
 DF_glob$Group_sex_p_value[grepl(paste("rh_parahippocampal_area"), DF_glob$model_yvar)]
 anova(model_test2)
 
@@ -473,14 +508,16 @@ glob = c("Model WITHOUT global var","Model WITH global var")
 datafs = list(DFs,DFs_glob)
 sp=list()
 
-for (k in seq(1,2)){
-  dfs = datafs[[k]]
+pp = 1
 
-  g = 1
-  pp = 1
-  i = 1
-  j = 3
+for (g in seq(1,2)){
   
+  for (i in seq(1,2)){
+    for (j in seq(1,3)){
+  
+      for (k in seq(1,2)){
+        dfs = datafs[[k]]
+        
   df1 = dfs[grepl(paste("^",h[i],sep = ""), dfs$model_yvar),]
   df1 = df1[grepl(paste("_",m[j],sep = ""), df1$model_yvar),]
   
@@ -511,12 +548,17 @@ for (k in seq(1,2)){
     {if (k==2) xlab(NULL)} +
     coord_flip()
 
-  top_title = paste(h[i],m[j],"for group",groups[g])
+      }
+      top_title = paste(h[i],m[j],"for group",groups[g])
+      lay <- rbind(c(1,1,1,1,1,1,1,2,2,2,2),
+                   c(1,1,1,1,1,1,1,2,2,2,2),
+                   c(1,1,1,1,1,1,1,2,2,2,2))
+      ps=grid.arrange(grobs=sp, layout_matrix=lay, top=textGrob(top_title,gp=gpar(fontsize=20)))
+      ggsave(paste(groups[g],"_",h[i],"_",m[j],"_mean_difference",".png",sep=""),ps,width = 10,height = 12)
+  }
 }
-lay <- rbind(c(1,1,1,1,1,1,1,2,2,2,2),
-             c(1,1,1,1,1,1,1,2,2,2,2),
-             c(1,1,1,1,1,1,1,2,2,2,2))
-grid.arrange(grobs=sp, layout_matrix=lay, top=textGrob(top_title,gp=gpar(fontsize=20)))
+}
+
 
 
 #sanity check
@@ -528,28 +570,62 @@ lsmeans(model_bvol2,pairwise~"group",by="sex")
 plot(lsmeans(model_bvol2,pairwise~"group",by="sex"),comparison=TRUE)
 
 
+
 #### plot evt regulær model vs glob model, som parallel coordinate??
 DF$model_diff_pv <- NA
-DF$test <- 1
-DF_glob$test <- 0
+DF$glob <- 0
+DF_glob$glob <- 1
 new <- rbind(DF, DF_glob)
+new$model_type[new$model_type == 1] = "no glob"
+new$model_type[new$model_type == 2] = "with glob"
 
-ggplot(new, aes(vars = vars(c(2,4,32)))) + 
-  geom_pcp_box(boxwidth=0.1, fill=NA, colour="grey70") +
-  geom_pcp(aes(colour = factor(model_type))) +  #alpha=0.5,
-  geom_pcp_text(boxwidth=0.1) + 
-  scale_colour_manual(values=c("darkorange", "steelblue")) +
+new$significant_GS[new$Group_sex_p_value < 0.05] = "G:S"
+new$significant_GS[new$Group_sex_p_value > 0.05] = "NO G:S"
+
+
+pcp=ggplot(new, aes(vars = vars(c(33,6,12,9,15,30)))) + #remember to change back to 32
+  geom_pcp_box(boxwidth=0.1, fill="grey") +
+  geom_pcp(boxwidth=0.1, aes(colour = factor(model_type))) +
+  geom_pcp_text(boxwidth=0.1) +
+  scale_colour_manual(values=c("darkorange", "steelblue")) + 
   guides(colour=guide_legend(override.aes = list(alpha=1)))
 
+ps=grid.arrange(pcp)
+ggsave(paste("pcp",".png",sep=""),ps,width = 10,height = 6)
 
 
-#prøv at gør site til en fixed effect for at se om CI bliver mindre
+
+#significance of model type
+pm = list()
+df = DF_glob
+
+for (i in seq(1,3)){
+  for (j in seq(1,2)){
+    df1 = df[grepl(paste("^",h[j],sep = ""), df$model_yvar),]
+    df1 = df1[grepl(paste("_",m[i],sep = ""), df1$model_yvar),]
+    
+    pm[[i*2+j-2]] =ggplot(df1, aes(x=as.factor( model_yvar ), y=as.numeric(model_diff_pv))) + 
+      geom_point() + 
+      #geom_hline(yintercept = 0.05) + 
+      labs(y = "LRT p-value", x = "brain region") +
+      ggtitle(paste(m[i],h[j]) ) +
+      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  }
+}
+
+ps=grid.arrange(grobs=pm)
+ggsave(paste("model_comparison_pvalue",".png",sep=""),ps,width = 10,height = 12)
 
 
 
-#MANOVA
-y_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
-y_vars = col_names_list[[paste("lh","area",sep = "_")]] 
+
+
+
+#############  MANOVA   ##############
+
+# Global measures # 
+y_vars = c("CortexVol", "total_area", "mean_thickness")#, "eICV_samseg")
+#y_vars = col_names_list[[paste("lh","area",sep = "_")]] 
 y_vars_idx = (names(datab) %in% y_vars == TRUE)
 my_vars <- data.matrix(datab[,c(y_vars_idx)])
 
@@ -561,6 +637,52 @@ summary.aov(mmodel)
 
 PH = lsmeans(mmodel,pairwise~"group", by = "sex")
 plot(PH,comparison=TRUE,xlab="Multivariate lsmean")
+
+
+
+
+# 34 regions combined for each measure# 
+## ALL 3
+y_vars = c(col_names_list[[paste("lh","area",sep = "_")]],col_names_list[[paste("lh","thickness",sep = "_")]],col_names_list[[paste("lh","volume",sep = "_")]])
+y_vars_idx = (names(datab) %in% y_vars == TRUE)
+my_vars <- data.matrix(datab[,c(y_vars_idx)])
+
+mmodel1 = manova(my_vars ~ group*sex + age + site, data = datab)
+anova(mmodel)
+mmodel1 = manova(my_vars ~ group + sex + age + site, data = datab)
+anova(mmodel)
+
+
+## AREA
+y_vars = col_names_list[[paste("lh","area",sep = "_")]] 
+y_vars_idx = (names(datab) %in% y_vars == TRUE)
+my_vars <- data.matrix(datab[,c(y_vars_idx)])
+
+mmodel = manova(my_vars ~ group*sex + age + site, data = datab)
+anova(mmodel)
+mmodel = manova(my_vars ~ group + sex + age + site, data = datab)
+anova(mmodel)
+
+## VOLUME
+y_vars = col_names_list[[paste("lh","volume",sep = "_")]] 
+y_vars_idx = (names(datab) %in% y_vars == TRUE)
+my_vars <- data.matrix(datab[,c(y_vars_idx)])
+
+mmodel = manova(my_vars ~ group*sex + age + site, data = datab)
+anova(mmodel)
+mmodel = manova(my_vars ~ group + sex + age + site, data = datab)
+anova(mmodel)
+
+## THICKNESS
+y_vars = col_names_list[[paste("lh","thickness",sep = "_")]] 
+y_vars_idx = (names(datab) %in% y_vars == TRUE)
+my_vars <- data.matrix(datab[,c(y_vars_idx)])
+
+mmodel = manova(my_vars ~ group*sex + age + site, data = datab)
+anova(mmodel)
+mmodel = manova(my_vars ~ group + sex + age + site, data = datab)
+anova(mmodel)
+
 
 
 #test individual models 
