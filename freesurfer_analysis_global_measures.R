@@ -19,6 +19,7 @@ library(grDevices)
 library(ggpcp)
 library(ggnewscale)
 library(forcats)
+library(writexl)
 
 #load data
 data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
@@ -69,13 +70,7 @@ for (i in seq(1,length(y_vars))){
     dft$NORM_measure[ dft$NAME_measure  == y_vars[i] ] = ( dft$VALUE_measure[ dft$NAME_measure  == y_vars[i] ] - avg) / avg
     
     dft$NORM_measure_K[ dft$NAME_measure  == y_vars[i] ] = ( dft$VALUE_measure[ dft$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-    
-#    if (y_vars[i] == "mean_thickness"){
-#      dft$NORM_measure_K_mt[ dft$NAME_measure  == y_vars[i] ] = ( dft$VALUE_measure[ dft$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-#    }
-#    else{
-#      dft$NORM_measure_K[ dft$NAME_measure  == y_vars[i] ] = ( dft$VALUE_measure[ dft$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-#    }
+
 }
   
 p_var = list()
@@ -198,6 +193,10 @@ min_emm = list()
 max_emm = list()
 model = list()
 
+df_with_ICV = data.frame()
+df_without_ICV = data.frame()
+
+
 for (i in seq(1,length(model_vars))){
   for (g in seq(1,2)){
     if (glob[g] == "with_eICV"){
@@ -210,11 +209,36 @@ for (i in seq(1,length(model_vars))){
     xvars = attributes(anova(model[[glob[g]]][[i]]))$row.names
     
     GS_pvals[[glob[g]]][[model_vars[i]]] = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"]
+    GS_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="group:sex"]
     
+    sign_GS = 1
+      
     if (anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"] > 0.05){
       model[[glob[g]]][[i]] = update(model[[glob[g]]][[i]],~.-group:sex)
+      sign_GS = 0
     } 
+    
+    group_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="group"]
+    sex_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="sex"]
+    age_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="age"]
+    site_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="site"]
+    EulerNumber_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="TotalEulerNumber"]
 
+    group_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group"]
+    sex_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="sex"]
+    age_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="age"]
+    site_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="site"]
+    EulerNumber_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="TotalEulerNumber"]
+    
+    rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],sign_GS)
+    
+    if (glob[g] == "with_eICV"){
+      df_with_ICV = rbindlist(list(df_with_ICV, rw))
+    }
+    else{
+      df_without_ICV = rbindlist(list(df_without_ICV, rw))
+    }
+    
     emm[[g]] = emmeans(model[[glob[g]]][[i]],specs = "group",by="sex")
     ps[[g]] = pwpp(emm[[g]],adjust="none",sort = FALSE) +
               #aes(y = factor("group", level = c("BP","K","SZ"))) +
@@ -241,6 +265,15 @@ for (i in seq(1,length(model_vars))){
   ggsave(paste(model_vars[i],"_group_diff_pvalues_ICV",".png",sep=""),ga,width = 10,height = 10)
 }
 
+col_names = c("Model_yvar","Group_Fval","Group_pval","Sex_Fval","Sex_pval","Age_Fval","Age_pval","Site_Fval","Site_pval","EulerNumber_Fval","Eulernumber_pval","Group_sex_Fval","Group_sex_pval","Significant_GS_interaction")
+names(df_with_ICV)<-col_names
+names(df_without_ICV)<-col_names
+
+df_with_ICV[,2:ncol(df_with_ICV)] <- signif(df_with_ICV[,2:ncol(df_with_ICV)],digits=3)
+df_without_ICV[,2:ncol(df_without_ICV)] <- signif(df_without_ICV[,2:ncol(df_without_ICV)],digits=3)
+
+write_xlsx(df_with_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/ANOVA_pvals_with_ICV.xlsx")
+write_xlsx(df_without_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/ANOVA_pvals_without_ICV.xlsx")
 
 
 
@@ -303,8 +336,12 @@ for (i in seq(1,length(model_vars))){
 y_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness")
 highriskG = c("BP","SZ")
 glob = c("with_eICV", "without_eICV")
+ss = c("sex0","sex1")
+sex_name = c("Female","Male")
+pd <- position_dodge(0.05) 
 
 pls = list()
+
 
 dftm = datab %>%
   pivot_longer(cols = y_vars,
@@ -318,6 +355,9 @@ dftm$NORM_measure_K = NA #dftm$VALUE_measure
 dftm$NORM_measure_K_mt = NA #dftm$VALUE_measure
 
 
+dfc_with_ICV = data.frame()
+dfc_without_ICV = data.frame()
+
 for (g in seq(1,length(glob))){
   
 for (i in seq(1,length(y_vars))){
@@ -325,17 +365,79 @@ for (i in seq(1,length(y_vars))){
 
   if (y_vars[i] == "mean_thickness"){
     dftm$NORM_measure_K_mt[ dftm$NAME_measure  == y_vars[i] ] = ( dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-  }
+    #ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",adjust="none") ## THIS NEEDS TO BE FIXED
+    }
   else{
     dftm$NORM_measure_K[ dftm$NAME_measure  == y_vars[i] ] = ( dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-  }
+    ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
+    }
+  
+  
+  lss = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
+  cc = lss$contrasts
+  
+
+  if (GS_pvals[[glob[g]]][[y_vars[i]]] > 0.05){
+    sign_GS = 0
+    lss = lsmeans(model[[glob[g]]][[i]],pairwise~"group",adjust="none")
+    cc = lss$contrasts
+    
+    #raw contrasts
+    BP_diff = summary(cc)$estimate[1]
+    BP_diff_tratio = summary(cc)$t.ratio[1]
+    BP_diff_pval = summary(cc)$p.value[1]
+    
+    SZ_diff = summary(cc)$estimate[3]
+    SZ_diff_tratio = summary(cc)$t.ratio[3]
+    SZ_diff_pval = summary(cc)$p.value[3]
+    
+    rw = list(y_vars[i], sign_GS, 
+              BP_diff, BP_diff_tratio, BP_diff_pval,
+              SZ_diff, SZ_diff_tratio, SZ_diff_pval,
+              as.numeric(NA), as.numeric(NA), as.numeric(NA),
+              as.numeric(NA), as.numeric(NA), as.numeric(NA),
+              as.numeric(NA), as.numeric(NA), as.numeric(NA), 
+              as.numeric(NA), as.numeric(NA), as.numeric(NA))
+    
+  } 
+  else {
+    sign_GS = 1
+    lss = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
+    cc = lss$contrasts
+    
+    #raw contrasts
+    sex0_BP_diff = summary(cc)$estimate[summary(cc)$sex == 0][1]
+    sex0_BP_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 0][1]
+    sex0_BP_diff_pval = summary(cc)$p.value[summary(cc)$sex == 0][1]
+    
+    sex0_SZ_diff = summary(cc)$estimate[summary(cc)$sex == 0][3]
+    sex0_SZ_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 0][3]
+    sex0_SZ_diff_pval = summary(cc)$p.value[summary(cc)$sex == 0][3]
+    
+    sex1_BP_diff = summary(cc)$estimate[summary(cc)$sex == 1][1]
+    sex1_BP_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 1][1]
+    sex1_BP_diff_pval = summary(cc)$p.value[summary(cc)$sex == 1][1]
+    
+    sex1_SZ_diff = summary(cc)$estimate[summary(cc)$sex == 1][3]
+    sex1_SZ_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 1][3]
+    sex1_SZ_diff_pval = summary(cc)$p.value[summary(cc)$sex == 1][3]
+    
+    rw = list(y_vars[i], sign_GS, 
+              as.numeric(NA), as.numeric(NA), as.numeric(NA),
+              as.numeric(NA), as.numeric(NA), as.numeric(NA),
+              sex0_BP_diff, sex0_BP_diff_tratio, sex0_BP_diff_pval,
+              sex0_SZ_diff, sex0_SZ_diff_tratio, sex0_SZ_diff_pval,
+              sex1_BP_diff, sex1_BP_diff_tratio, sex1_BP_diff_pval,
+              sex1_SZ_diff, sex1_SZ_diff_tratio, sex1_SZ_diff_pval)
+    
+  } 
   
   
   ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
   c = ls$contrasts
+  
   K_emm = summary(ls)$lsmeans$lsmean[summary(ls$lsmeans)$sex == 0][2]
   sex1_K_emm = summary(ls)$lsmeans$lsmean[summary(ls$lsmeans)$sex == 1][2]
-  
   
   #percent difference
   BP_diff_P = 100*summary(c)$estimate[summary(c)$sex == 0][1] /K_emm
@@ -353,76 +455,114 @@ for (i in seq(1,length(y_vars))){
   sex1_SZ_diff_P = -100*summary(c)$estimate[summary(c)$sex == 1][3] /sex1_K_emm
   sex1_SZ_diff_LCL_P = -100*confint(c)$lower.CL[confint(c)$sex == 1][3] /sex1_K_emm
   sex1_SZ_diff_UCL_P = -100*confint(c)$upper.CL[confint(c)$sex == 1][3] /sex1_K_emm
+
   
-  #BP
-  dftm$lsmean_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_P
-  dftm$lsmean_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_P
+  if (glob[g] == "with_eICV"){
+    dfc_with_ICV = rbindlist(list(dfc_with_ICV, rw))
+  }
+  else{
+    dfc_without_ICV = rbindlist(list(dfc_without_ICV, rw))
+  }
   
-  dftm$eb_max_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_UCL_P
-  dftm$eb_min_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_LCL_P
   
-  dftm$eb_max_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_UCL_P
-  dftm$eb_min_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_LCL_P
   
-  #SZ
-  dftm$lsmean_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_P
-  dftm$lsmean_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_P
+  ###
+  dftm$lsmean_sex0[dftm$NAME_measure  == y_vars[i] & dftm$group == "BP" & dftm$sex == 0] = BP_diff_P
+  dftm$eb_max_sex0[dftm$NAME_measure  == y_vars[i] & dftm$group == "BP" & dftm$sex == 0] = BP_diff_UCL_P
+  dftm$eb_min_sex0[dftm$NAME_measure  == y_vars[i] & dftm$group == "BP" & dftm$sex == 0] = BP_diff_LCL_P
   
-  dftm$eb_max_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_UCL_P
-  dftm$eb_min_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_LCL_P
+  dftm$lsmean_sex1[dftm$NAME_measure  == y_vars[i] & dftm$group == "BP" & dftm$sex == 1] = sex1_BP_diff_P
+  dftm$eb_max_sex1[dftm$NAME_measure  == y_vars[i] & dftm$group == "BP" & dftm$sex == 1] = sex1_BP_diff_UCL_P
+  dftm$eb_min_sex1[dftm$NAME_measure  == y_vars[i] & dftm$group == "BP" & dftm$sex == 1] = sex1_BP_diff_LCL_P
   
-  dftm$eb_max_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_UCL_P
-  dftm$eb_min_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_LCL_P
+  
+  ###
+  dftm$lsmean_sex0[dftm$NAME_measure  == y_vars[i] & dftm$group == "SZ" & dftm$sex == 0] = SZ_diff_P
+  dftm$eb_max_sex0[dftm$NAME_measure  == y_vars[i] & dftm$group == "SZ" & dftm$sex == 0] = SZ_diff_UCL_P
+  dftm$eb_min_sex0[dftm$NAME_measure  == y_vars[i] & dftm$group == "SZ" & dftm$sex == 0] = SZ_diff_LCL_P
+  
+  dftm$lsmean_sex1[dftm$NAME_measure  == y_vars[i] & dftm$group == "SZ" & dftm$sex == 1] = sex1_SZ_diff_P
+  dftm$eb_max_sex1[dftm$NAME_measure  == y_vars[i] & dftm$group == "SZ" & dftm$sex == 1] = sex1_SZ_diff_UCL_P
+  dftm$eb_min_sex1[dftm$NAME_measure  == y_vars[i] & dftm$group == "SZ" & dftm$sex == 1] = sex1_SZ_diff_LCL_P
   
 }
   
+  if (glob[g] == "with_eICV"){
+    dfc_plot_with_eICV = dftm
+  }
+  else{
+    dfc_plot_without_eICV = dftm
+  }
+  
+}
 
+
+col_names = c("Model_yvar", "Significant_GS_interaction",
+              "Contrast_BP-K","tratio_BP-K","pval_BP-K",
+              "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
+              "Sex0_Contrast_BP-K","Sex0_tratio_BP-K","Sex0_pval_BP-K",
+              "Sex0_Contrast_SZ-K","Sex0_tratio_SZ-K","Sex0_pval_SZ-K",
+              "Sex1_Contrast_BP-K","Sex1_tratio_BP-K","Sex1_pval_BP-K",
+              "Sex1_Contrast_SZ-K","Sex1_tratio_SZ-K","Sex1_pval_SZ-K")
+names(dfc_with_ICV)<-col_names
+names(dfc_without_ICV)<-col_names
+
+dfc_with_ICV[,2:ncol(dfc_with_ICV)] <- signif(dfc_with_ICV[,2:ncol(dfc_with_ICV)],digits=3)
+dfc_without_ICV[,2:ncol(dfc_without_ICV)] <- signif(dfc_without_ICV[,2:ncol(dfc_without_ICV)],digits=3)
+
+write_xlsx(dfc_with_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Model_contrasts_with_ICV.xlsx")
+write_xlsx(dfc_without_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Model_contrasts_without_ICV.xlsx")
+
+
+
+
+### PLOT THE LSMEANS 
+
+
+for (g in seq(1,length(glob))){
+  DF = get(paste("dfc_plot_",glob[g],sep = ""))
+  
 for (h in seq(1,2)){
-  pls[[2*h-1]]= with(dftm[!is.na(dftm$NORM_measure_K), ],
+  pls[[h]]= with(DF[!is.na(dftm$NORM_measure_K), ],
                     ggplot() + 
                      aes(x = factor(NAME_measure), y = 100*NORM_measure_K, color = group) +
                      geom_violin(position = "identity",alpha=0.3) +
                      geom_jitter(width = 0.3, size=0.1) + 
                      geom_hline(yintercept = 0,linetype="dashed") + 
                      
-                     ggnewscale::new_scale_colour() +
-                     
-                     geom_point(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color=sex, group=sex), size=2) +
-                     scale_colour_manual("Contrasts per sex", values = c("red", "blue")) + 
-                     
-                     geom_errorbar(aes_string(width=0.05,group="sex",color="sex",ymin=paste("eb_min_",highriskG[h],sep=""), ymax=paste("eb_max_",highriskG[h],sep="")) ) +
-                     geom_line(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color="sex", group="sex")) +
-                     
+                     geom_point(position=pd, aes_string(x = "NAME_measure", y = paste("lsmean",ss[h],sep = "_"), color="group", group="group"), size=2) +
+                     #geom_line(position=pd, aes_string(x = "NAME_measure", y = paste("lsmean",ss[h],sep = "_"), color="group", group="group")) +
+                      
+                     stat_summary(fun.y = mean,geom = "line",position=pd, aes_string(x = "NAME_measure", y = paste("lsmean",ss[h],sep = "_"), color="group", group="group")) + 
+                   
+                     geom_errorbar(position=pd, width=0.2, aes_string(group="group",color="group",ymin=paste("eb_min_",ss[h],sep=""), ymax=paste("eb_max_",ss[h],sep="")) ) +
+
                      theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
                      labs(y = "Difference from control [%]", x = "brain measure") +
-                     ggtitle(paste(highriskG[h])) +
+                     ggtitle(paste(sex_name[h])) +
                      
                      annotate("text", size=2.5, x = c(1,2,3), y=21, label = c(paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[1]]],digits=3)),
                                                                     paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[2]]],digits=3)),
                                                                     paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[3]]],digits=3))) )
   )
   
-  pls[[2*h]]= with(dftm[!is.na(dftm$NORM_measure_K_mt), ],
+  pls[[3]]= with(DF[!is.na(dftm$NORM_measure_K_mt), ],
                  ggplot() + 
                    aes(x = factor(NAME_measure), y = 100*NORM_measure_K_mt, color = group) +
                    geom_violin(position = "identity",alpha=0.3) +
                    geom_jitter(width = 0.3, size=0.1) + 
                    geom_hline(yintercept = 0,linetype="dashed") + 
                    
-                   ggnewscale::new_scale_colour() +
-                   
-                   geom_point(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color=sex, group=sex), size=2) +
-                   scale_colour_manual("Contrasts per sex", values = c("red", "blue")) + 
-                   
-                   geom_errorbar(aes_string(width=0.05,group="sex",color="sex",ymin=paste("eb_min_",highriskG[h],sep=""), ymax=paste("eb_max_",highriskG[h],sep="")) ) +
-                   geom_line(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color="sex", group="sex")) +
-                   
+                   geom_point(position=pd, aes_string(x = "NAME_measure", y = paste("lsmean",ss[h],sep = "_"), color=group, group=group), size=2) +
+                   geom_errorbar(position=pd, aes_string(width=0.1,group="group",color="group",ymin=paste("eb_min_",ss[h],sep=""), ymax=paste("eb_max_",ss[h],sep="")) ) +
+
                    #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
                    labs(y = "Difference from control [%]", x = "brain measure") +
-                   ggtitle(paste(highriskG[h])) + 
+                   ggtitle("Both sex") + 
                  
                     annotate("text",size=2.5, x = 1, y=7.9, label = c(paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[4]]],digits=3))))
   )
+  pls[[4]] = ggplot() + theme_void()
   
 } #h = for each highrisk group in subplot
 
@@ -431,6 +571,9 @@ ga=grid.arrange(grobs=pls,ncols=2, top=textGrob(top_title,gp=gpar(fontsize=20)))
 ggsave(paste("LSmeans_contrasts_on_datapoints_",glob[g],".png",sep=""),ga,width = 10,height = 10)
 
 } #g
+
+
+
 
 
 
@@ -453,10 +596,10 @@ par(mfrow=c(1,1))
 
 
 
+###################################
+#######     ARCHIVE     ###########
+###################################
 
-
-
-####### ARCHIVE 
 
 #ps[[g]] = plot(PH,comparisons=TRUE,xlab="LSmean estiamte") +
 #          ggtitle(paste(glob[g])) +
@@ -523,3 +666,140 @@ pairs(emm,
       Letters=letters,
       adjust="tukey")
 
+
+
+
+
+####### LSmeans estimates on the variance plot #########
+
+y_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness")
+highriskG = c("BP","SZ")
+glob = c("with_eICV", "without_eICV")
+
+pls = list()
+
+dftm = datab %>%
+  pivot_longer(cols = y_vars,
+               names_to = "NAME_measure",
+               values_to = "VALUE_measure",
+               values_drop_na = FALSE)
+dftm = as.data.frame(dftm)
+
+dftm$NORM_measure = dftm$VALUE_measure
+dftm$NORM_measure_K = NA #dftm$VALUE_measure
+dftm$NORM_measure_K_mt = NA #dftm$VALUE_measure
+
+
+for (g in seq(1,length(glob))){
+  
+  for (i in seq(1,length(y_vars))){
+    avg_K = mean(dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] & dftm$group  == "K"])
+    
+    if (y_vars[i] == "mean_thickness"){
+      dftm$NORM_measure_K_mt[ dftm$NAME_measure  == y_vars[i] ] = ( dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
+    }
+    else{
+      dftm$NORM_measure_K[ dftm$NAME_measure  == y_vars[i] ] = ( dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
+    }
+    
+    
+    ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
+    c = ls$contrasts
+    K_emm = summary(ls)$lsmeans$lsmean[summary(ls$lsmeans)$sex == 0][2]
+    sex1_K_emm = summary(ls)$lsmeans$lsmean[summary(ls$lsmeans)$sex == 1][2]
+    
+    
+    #percent difference
+    BP_diff_P = 100*summary(c)$estimate[summary(c)$sex == 0][1] /K_emm
+    BP_diff_LCL_P = 100*confint(c)$lower.CL[confint(c)$sex == 0][1] /K_emm
+    BP_diff_UCL_P = 100*confint(c)$upper.CL[confint(c)$sex == 0][1] /K_emm
+    
+    SZ_diff_P = -100*summary(c)$estimate[summary(c)$sex == 0][3] /K_emm
+    SZ_diff_LCL_P = -100*confint(c)$lower.CL[confint(c)$sex == 0][3] /K_emm
+    SZ_diff_UCL_P = -100*confint(c)$upper.CL[confint(c)$sex == 0][3] /K_emm
+    
+    sex1_BP_diff_P = 100*summary(c)$estimate[summary(c)$sex == 1][1] /sex1_K_emm
+    sex1_BP_diff_LCL_P = 100*confint(c)$lower.CL[confint(c)$sex == 1][1] /sex1_K_emm
+    sex1_BP_diff_UCL_P = 100*confint(c)$upper.CL[confint(c)$sex == 1][1] /sex1_K_emm
+    
+    sex1_SZ_diff_P = -100*summary(c)$estimate[summary(c)$sex == 1][3] /sex1_K_emm
+    sex1_SZ_diff_LCL_P = -100*confint(c)$lower.CL[confint(c)$sex == 1][3] /sex1_K_emm
+    sex1_SZ_diff_UCL_P = -100*confint(c)$upper.CL[confint(c)$sex == 1][3] /sex1_K_emm
+    
+    #BP
+    dftm$lsmean_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_P
+    dftm$lsmean_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_P
+    
+    dftm$eb_max_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_UCL_P
+    dftm$eb_min_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_LCL_P
+    
+    dftm$eb_max_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_UCL_P
+    dftm$eb_min_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_LCL_P
+    
+    #SZ
+    dftm$lsmean_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_P
+    dftm$lsmean_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_P
+    
+    dftm$eb_max_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_UCL_P
+    dftm$eb_min_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_LCL_P
+    
+    dftm$eb_max_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_UCL_P
+    dftm$eb_min_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_LCL_P
+    
+  }
+  
+  
+  for (h in seq(1,2)){
+    pls[[2*h-1]]= with(dftm[!is.na(dftm$NORM_measure_K), ],
+                       ggplot() + 
+                         aes(x = factor(NAME_measure), y = 100*NORM_measure_K, color = group) +
+                         geom_violin(position = "identity",alpha=0.3) +
+                         geom_jitter(width = 0.3, size=0.1) + 
+                         geom_hline(yintercept = 0,linetype="dashed") + 
+                         
+                         ggnewscale::new_scale_colour() +
+                         
+                         geom_point(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color=sex, group=sex), size=2) +
+                         scale_colour_manual("Contrasts per sex", values = c("red", "blue")) + 
+                         
+                         geom_errorbar(aes_string(width=0.05,group="sex",color="sex",ymin=paste("eb_min_",highriskG[h],sep=""), ymax=paste("eb_max_",highriskG[h],sep="")) ) +
+                         geom_line(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color="sex", group="sex")) +
+                         
+                         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+                         labs(y = "Difference from control [%]", x = "brain measure") +
+                         ggtitle(paste(highriskG[h])) +
+                         
+                         annotate("text", size=2.5, x = c(1,2,3), y=21, label = c(paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[1]]],digits=3)),
+                                                                                  paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[2]]],digits=3)),
+                                                                                  paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[3]]],digits=3))) )
+    )
+    
+    pls[[2*h]]= with(dftm[!is.na(dftm$NORM_measure_K_mt), ],
+                     ggplot() + 
+                       aes(x = factor(NAME_measure), y = 100*NORM_measure_K_mt, color = group) +
+                       geom_violin(position = "identity",alpha=0.3) +
+                       geom_jitter(width = 0.3, size=0.1) + 
+                       geom_hline(yintercept = 0,linetype="dashed") + 
+                       
+                       ggnewscale::new_scale_colour() +
+                       
+                       geom_point(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color=sex, group=sex), size=2) +
+                       scale_colour_manual("Contrasts per sex", values = c("red", "blue")) + 
+                       
+                       geom_errorbar(aes_string(width=0.05,group="sex",color="sex",ymin=paste("eb_min_",highriskG[h],sep=""), ymax=paste("eb_max_",highriskG[h],sep="")) ) +
+                       geom_line(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color="sex", group="sex")) +
+                       
+                       #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+                       labs(y = "Difference from control [%]", x = "brain measure") +
+                       ggtitle(paste(highriskG[h])) + 
+                       
+                       annotate("text",size=2.5, x = 1, y=7.9, label = c(paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[4]]],digits=3))))
+    )
+    
+  } #h = for each highrisk group in subplot
+  
+  top_title = paste("LSmeans contrasts of model",glob[g])
+  ga=grid.arrange(grobs=pls,ncols=2, top=textGrob(top_title,gp=gpar(fontsize=20)))
+  ggsave(paste("LSmeans_contrasts_on_datapoints_",glob[g],"_alt.png",sep=""),ga,width = 10,height = 10)
+  
+} #g
