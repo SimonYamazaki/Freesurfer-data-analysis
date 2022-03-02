@@ -22,9 +22,6 @@ library(ggpcp)
 #load data
 data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
 
-#inspect the head of data and summary
-head(data_csv)
-summary(data_csv)
 
 #filter the data with include variable
 data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
@@ -45,7 +42,6 @@ setwd("/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral")
 ######################################
 
 # extract model yvars 
-
 
 #make the bilateral coloumns
 m = c("area","thickness","volume")
@@ -74,79 +70,6 @@ datab$site = as.factor(datab$MR_Site)
 datab$diag = as.factor(datab$Axis.1_diag_v11)
 datab$age = as.numeric(datab$MRI_age)
 
-
-
-#plot variance in each region for each measure
-
-mm = "area"
-mc = paste(col_names_list[[mm]])
-dft = datab %>%
-  pivot_longer(cols = mc,
-               names_to = "NAME_region_measure_h",
-               values_to = "VALUE_region_measure_h",
-               values_drop_na = FALSE)
-dft = as.data.frame(dft)
-
-dft$NORM_region_measure_h = dft$VALUE_region_measure_h
-
-for (i in seq(1,length(col_names_list[[mm]]))){
-  avg = mean(dft$VALUE_region_measure_h[ dft$NAME_region_measure_h  == col_names_list[[mm]][i] ])
-  dft$NORM_region_measure_h = ( dft$VALUE_region_measure_h[ dft$NAME_region_measure_h  == col_names_list[[mm]][i] ] - avg ) / avg
-}
-
-p_var = list()
-
-#plot data
-p_var[[1]]=with(dft,
-                ggplot() +
-                  aes_string(x = "NAME_region_measure_h", color = "group", group = "group", y = "VALUE_region_measure_h") +
-                  geom_jitter(width = 0.4, size=0.1) + 
-                  stat_summary(fun = mean, geom = "point",size=2) +
-                  stat_summary(fun = mean, geom = "point",size=2,pch=21,colour="black") +
-                  scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) + 
-                  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-                  labs(y = paste("Region",m), x = "brain region") +
-                  ggtitle(paste(mm))
-)
-
-
-p_var[[2]]= with(dft,
-                 ggplot() +
-                   aes(x = factor(NAME_region_measure_h), y = 100*NORM_region_measure_h, color = group) +
-                   geom_violin(position = "identity",alpha=0.3) +
-                   geom_jitter(width = 0.4, size=0.1) + 
-                   geom_hline(yintercept = 0) + 
-                   stat_summary(fun = mean, geom = "point",size=3,aes(colour = group)) +
-                   #stat_summary(fun = mean, geom = "point",size=3,pch=21) +
-                   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-                   labs(y = "Percent difference from mean [%]", x = "brain region") +
-                   ggtitle(paste(mm))
-)
-ps=grid.arrange(grobs=p_var)
-#ggsave(paste("original_unit_all_region_variance_",mm,".png",sep=""),ps,width = 14,height = 10)
-
-ps=grid.arrange(p_var[[2]])
-ggsave(paste("all_region_variance_",mm,".png",sep=""),ps,width = 14,height = 6)
-
-
-p_var2 = list()
-half_names = c("bankssts","caudalanteriorcingulate","caudalmiddlefrontal","cuneus","entorhinal",
-               "fusiform","inferiorparietal","inferiortemporal","isthmuscingulate","lateraloccipital",
-               "lateralorbitofrontal","lingual","medialorbitofrontal","middletemporal","parahippocampal",
-               "paracentral","parsopercularis")
-
-half_names2 = c("parsorbitalis","parstriangularis","pericalcarine","postcentral","posteriorcingulate",
-                "precentral","precuneus","rostralanteriorcingulate","rostralmiddlefrontal",
-                "superiorfrontal","superiorparietal","superiortemporal","supramarginal","frontalpole",
-                "temporalpole","transversetemporal","insula")
-
-dft2 = dft[!grepl(half_names[1], dft$NAME_region_measure_h,fixed=TRUE),]
-dft3 = dft[!grepl(half_names2[1], dft$NAME_region_measure_h,fixed=TRUE),]
-
-for (i in seq(2,length(half_names))){
-  dft2 = dft2[!grepl(half_names[i], dft2$NAME_region_measure_h,fixed=TRUE),]
-  dft3 = dft3[!grepl(half_names2[i], dft3$NAME_region_measure_h,fixed=TRUE),]
-}
 
 
 
@@ -333,6 +256,350 @@ DFs_glob$sex = as.factor(DFs_glob$sex)
 
 
 
+pivot_cols = c("BP_diff_P","SZ_diff_P")
+DFp = DFs %>%
+  pivot_longer(cols = pivot_cols,
+               names_to = "diff_group",
+               values_to = "diff_value_P",
+               values_drop_na = FALSE)
+DFp = as.data.frame(DFp)
+DFp$diff_group[DFp$diff_group == "BP_diff_P"] = "BP"
+DFp$diff_group[DFp$diff_group == "SZ_diff_P"] = "SZ"
+
+DFp_glob = DFs_glob %>%
+  pivot_longer(cols = pivot_cols,
+               names_to = "diff_group",
+               values_to = "diff_value_P",
+               values_drop_na = FALSE)
+
+DFp_glob = as.data.frame(DFp_glob)
+DFp_glob$diff_group[DFp_glob$diff_group == "BP_diff_P"] = "BP"
+DFp_glob$diff_group[DFp_glob$diff_group == "SZ_diff_P"] = "SZ"
+
+
+#for non-glob
+pivot_cols_LCL = c("BP_diff_LCL_P","SZ_diff_LCL_P")
+DF_LCL = DFs %>%
+  pivot_longer(cols = pivot_cols_LCL,
+               names_to = "diff_group_LCL",
+               values_to = "diff_LCL_P",
+               values_drop_na = FALSE)
+
+pivot_cols_UCL = c("BP_diff_UCL_P","SZ_diff_UCL_P")
+DF_UCL = DFs %>%
+  pivot_longer(cols = pivot_cols_UCL,
+               names_to = "diff_group_UCL",
+               values_to = "diff_UCL_P",
+               values_drop_na = FALSE)
+DF_CL = data.frame(DF_LCL$diff_group_LCL, DF_LCL$diff_LCL_P, DF_UCL$diff_UCL_P)
+names(DF_CL) = c("diff_group_CL","diff_LCL_P","diff_UCL_P")
+DFp = cbind(DFp,DF_CL)
+
+
+#for glob
+pivot_cols_LCL = c("BP_diff_LCL_P","SZ_diff_LCL_P")
+DF_LCL = DFs_glob %>%
+  pivot_longer(cols = pivot_cols_LCL,
+               names_to = "diff_group_LCL",
+               values_to = "diff_LCL_P",
+               values_drop_na = FALSE)
+
+pivot_cols_UCL = c("BP_diff_UCL_P","SZ_diff_UCL_P")
+DF_UCL = DFs_glob %>%
+  pivot_longer(cols = pivot_cols_UCL,
+               names_to = "diff_group_UCL",
+               values_to = "diff_UCL_P",
+               values_drop_na = FALSE)
+DF_CL = data.frame(DF_LCL$diff_group_LCL, DF_LCL$diff_LCL_P, DF_UCL$diff_UCL_P)
+names(DF_CL) = c("diff_group_CL","diff_LCL_P","diff_UCL_P")
+DFp_glob = cbind(DFp_glob,DF_CL)
+
+
+
+
+###### mean difference plot
+groups = c("BP","SZ")
+P = c("_P","")
+Plab = c("Difference from control [%]","Orignial units")
+m = c("area","thickness","volume")
+glob = c("Models WITHOUT global var","Models WITH global var")
+sx = c("female","male")
+
+sp=list()
+
+pp = 1
+  
+for (j in seq(1,length(m))){
+  
+  dfs = DFp[grepl(paste("_",m[j],sep = ""), DFp$model_yvar),]
+  dfs_glob = DFp_glob[grepl(paste("_",m[j],sep = ""), DFp$model_yvar),]
+  data_DF = list(dfs,dfs_glob)
+  
+  for (g in seq(1,2)){  
+    
+    dfs = data_DF[[g]]
+    
+    for (s in seq(1,length(sx))){
+      
+      dfss = dfs[c(dfs$sex == s-1),]
+      
+      sp[[2*g-2+s]]=ggplot(dfss, aes_string(group="diff_group",color="diff_group", x="model_yvar", y="diff_value_P")) +
+        labs(x="region",y=Plab[pp]) +
+        geom_line() + 
+        ggtitle(paste(glob[g],":",sx[s])) + 
+        geom_hline(yintercept = 0) + 
+        #geom_errorbar(aes_string(width=0.3,group="diff_group_CL",color="diff_group_CL",ymin="diff_LCL_P", ymax="diff_UCL_P" )) +
+        geom_point(aes_string(group="diff_group",color="diff_group",x="model_yvar", y="diff_value_P")) +
+        theme(axis.text.x = element_text(color = "#993333", 
+                                         size = 8, angle = 90)) + #face = "bold",
+        ylim(-10, 10) +
+        {if (m[j]=="thickness") ylim(-3, 3)}
+        #{if (k==1) theme(legend.position = "none")} +
+        #{if (k==2) theme(axis.text.y=element_blank())} +
+        #{if (k==2) xlab(NULL)}
+        #coord_flip()
+      
+    } #end for s
+
+  }
+  top_title = paste("Bilateral LSmean difference from control: ",m[j])
+  ps=grid.arrange(grobs=sp, top=textGrob(top_title,gp=gpar(fontsize=20)))
+  ggsave(paste("LSmean_difference_",m[j],".png",sep=""),ps,width = 15,height = 10)
+  
+}
+
+
+
+
+
+#mean difference for thickness without sex separation
+
+###### make inference with models
+models = list()
+models_glob = list()
+
+DF_thickness = data.frame()
+DF_glob_thickness = data.frame()
+
+for (j in seq(2,2)){
+  print(m[j])
+  model_yvars = unlist(col_names_list[[m[j]]] )
+  for (k in seq(1,length(model_yvars))){
+    for (mi in seq(1,2)){
+      
+      if (mi == 1){
+        #no global measure model
+        f = paste(model_yvars[k],"~","+","group*sex","+","age","+","site","+","TotalEulerNumber")
+        models[[m[j]]][[model_yvars[k]]] = lm(f,data=datab)
+        
+        model_ana = models[[m[j]]][[model_yvars[k]]]
+        xvars = attributes(anova(model_ana))$row.names
+        pv_group_sex = anova(model_ana)$"Pr(>F)"[xvars=="group:sex"]
+        
+        if (anova(model_ana)$"Pr(>F)"[xvars=="group:sex"] > 0.05){
+          model_ana = update(model_ana,~.-group:sex)
+        } 
+        models[[m[j]]][[model_yvars[k]]] = model_ana
+        
+      }
+      else {
+        #global measure model
+        if (m[j] == "thickness"){
+          f2 = paste(model_yvars[k],"~","+","group*sex","+","age","+","site","+","TotalEulerNumber","+","mean_thickness")
+        }
+
+        models_glob[[m[j]]][[model_yvars[k]]] = lm(f2,data=datab)
+        model_ana = models_glob[[m[j]]][[model_yvars[k]]]
+        xvars = attributes(anova(model_ana))$row.names
+        pv_group_sex = anova(model_ana)$"Pr(>F)"[xvars=="group:sex"]
+        
+        if (anova(model_ana)$"Pr(>F)"[xvars=="group:sex"] > 0.05){
+          model_ana = update(model_ana,~.-group:sex)
+        } 
+        models_glob[[m[j]]][[model_yvars[k]]] = model_ana
+      }
+      
+      
+      #use the above defined model_ana 
+      ls = lsmeans(model_ana,pairwise~"group")
+      c = ls$contrasts
+      K_emm = summary(ls)$lsmeans$lsmean[2]
+
+      #percent difference
+      BP_diff_P = 100*summary(c)$estimate[1] /K_emm
+      BP_diff_LCL_P = 100*confint(c)$lower.CL[1] /K_emm
+      BP_diff_UCL_P = 100*confint(c)$upper.CL[1] /K_emm
+      
+      SZ_diff_P = -100*summary(c)$estimate[3] /K_emm
+      SZ_diff_LCL_P = -100*confint(c)$lower.CL[3] /K_emm
+      SZ_diff_UCL_P = -100*confint(c)$upper.CL[3] /K_emm
+      
+      pv_group = anova(model_ana)$"Pr(>F)"[1]
+      
+      rw = list(model_yvars[k],pv_group,pv_group_sex, K_emm,
+                BP_diff_P, BP_diff_LCL_P, BP_diff_UCL_P, 
+                SZ_diff_P, SZ_diff_LCL_P, SZ_diff_UCL_P,mi)
+      
+      if (mi == 1){
+        DF_thickness = rbindlist(list(DF_thickness, rw))
+      }
+      else{
+        model_LRT_pv = anova(models_glob[[m[j]]][[model_yvars[k]]],models[[m[j]]][[model_yvars[k]]])$"Pr(>Chisq)"[2]
+        rw = append(rw,model_LRT_pv)
+        
+        DF_glob_thickness = rbindlist(list(DF_glob_thickness, rw))
+      }
+      
+    } #mi 
+    
+  } #k
+} #j
+
+names(DF_thickness)<-c("model_yvar","Group_p_value","Group_sex_p_value","K_emm",
+             "BP_diff_P", "BP_diff_LCL_P", "BP_diff_UCL_P", 
+             "SZ_diff_P", "SZ_diff_LCL_P", "SZ_diff_UCL_P","model_type")
+names(DF_glob_thickness)<-c("model_yvar","Group_p_value","Group_sex_p_value","K_emm",
+                  "BP_diff_P", "BP_diff_LCL_P", "BP_diff_UCL_P", 
+                  "SZ_diff_P", "SZ_diff_LCL_P", "SZ_diff_UCL_P", "model_type")
+
+
+pivot_cols = c("BP_diff_P","SZ_diff_P")
+DFp = DF_thickness %>%
+  pivot_longer(cols = pivot_cols,
+               names_to = "diff_group",
+               values_to = "diff_value_P",
+               values_drop_na = FALSE)
+DFp = as.data.frame(DFp)
+DFp$diff_group[DFp$diff_group == "BP_diff_P"] = "BP"
+DFp$diff_group[DFp$diff_group == "SZ_diff_P"] = "SZ"
+
+DFp_glob = DF_glob_thickness %>%
+  pivot_longer(cols = pivot_cols,
+               names_to = "diff_group",
+               values_to = "diff_value_P",
+               values_drop_na = FALSE)
+
+DFp_glob = as.data.frame(DFp_glob)
+DFp_glob$diff_group[DFp_glob$diff_group == "BP_diff_P"] = "BP"
+DFp_glob$diff_group[DFp_glob$diff_group == "SZ_diff_P"] = "SZ"
+
+
+
+
+sp=list()
+
+pp = 1
+
+data_DF = list(DFp,DFp_glob)
+
+for (g in seq(1,2)){  
+  
+  dfs = data_DF[[g]]
+    
+    sp[[g]]=ggplot(dfs, aes_string(group="diff_group",color="diff_group", x="model_yvar", y="diff_value_P")) +
+      labs(x="region",y=Plab[pp]) +
+      geom_line() + 
+      ggtitle(paste(glob[g])) + 
+      geom_hline(yintercept = 0) + 
+      #geom_errorbar(aes_string(width=0.3,group="diff_group_CL",color="diff_group_CL",ymin="diff_LCL_P", ymax="diff_UCL_P" )) +
+      geom_point(aes_string(group="diff_group",color="diff_group",x="model_yvar", y="diff_value_P")) +
+      theme(axis.text.x = element_text(color = "#993333", 
+                                       size = 8, angle = 90)) + #face = "bold",
+      ylim(-10, 10) +
+      {if (m[j]=="thickness") ylim(-3, 3)}
+    #{if (k==1) theme(legend.position = "none")} +
+    #{if (k==2) theme(axis.text.y=element_blank())} +
+    #{if (k==2) xlab(NULL)}
+    #coord_flip()
+  
+}
+top_title = paste("Bilateral LSmean difference from control: thickness")
+ps=grid.arrange(grobs=sp, top=textGrob(top_title,gp=gpar(fontsize=20)))
+ggsave(paste("LSmean_difference_thickness_gender_combined",".png",sep=""),ps,width = 10,height = 10)
+
+
+
+
+
+
+
+
+################ MAYBE USE LATER ##############
+
+
+#plot variance in each region for each measure
+
+mm = "area"
+mc = paste(col_names_list[[mm]])
+dft = datab %>%
+  pivot_longer(cols = mc,
+               names_to = "NAME_region_measure_h",
+               values_to = "VALUE_region_measure_h",
+               values_drop_na = FALSE)
+dft = as.data.frame(dft)
+
+dft$NORM_region_measure_h = dft$VALUE_region_measure_h
+
+for (i in seq(1,length(col_names_list[[mm]]))){
+  avg = mean(dft$VALUE_region_measure_h[ dft$NAME_region_measure_h  == col_names_list[[mm]][i] ])
+  dft$NORM_region_measure_h = ( dft$VALUE_region_measure_h[ dft$NAME_region_measure_h  == col_names_list[[mm]][i] ] - avg ) / avg
+}
+
+p_var = list()
+
+#plot data
+p_var[[1]]=with(dft,
+                ggplot() +
+                  aes_string(x = "NAME_region_measure_h", color = "group", group = "group", y = "VALUE_region_measure_h") +
+                  geom_jitter(width = 0.4, size=0.1) + 
+                  stat_summary(fun = mean, geom = "point",size=2) +
+                  stat_summary(fun = mean, geom = "point",size=2,pch=21,colour="black") +
+                  scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) + 
+                  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+                  labs(y = paste("Region",m), x = "brain region") +
+                  ggtitle(paste(mm))
+)
+
+
+p_var[[2]]= with(dft,
+                 ggplot() +
+                   aes(x = factor(NAME_region_measure_h), y = 100*NORM_region_measure_h, color = group) +
+                   geom_violin(position = "identity",alpha=0.3) +
+                   geom_jitter(width = 0.4, size=0.1) + 
+                   geom_hline(yintercept = 0) + 
+                   stat_summary(fun = mean, geom = "point",size=3,aes(colour = group)) +
+                   #stat_summary(fun = mean, geom = "point",size=3,pch=21) +
+                   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+                   labs(y = "Percent difference from mean [%]", x = "brain region") +
+                   ggtitle(paste(mm))
+)
+ps=grid.arrange(grobs=p_var)
+#ggsave(paste("original_unit_all_region_variance_",mm,".png",sep=""),ps,width = 14,height = 10)
+
+ps=grid.arrange(p_var[[2]])
+ggsave(paste("all_region_variance_",mm,".png",sep=""),ps,width = 14,height = 6)
+
+
+p_var2 = list()
+half_names = c("bankssts","caudalanteriorcingulate","caudalmiddlefrontal","cuneus","entorhinal",
+               "fusiform","inferiorparietal","inferiortemporal","isthmuscingulate","lateraloccipital",
+               "lateralorbitofrontal","lingual","medialorbitofrontal","middletemporal","parahippocampal",
+               "paracentral","parsopercularis")
+
+half_names2 = c("parsorbitalis","parstriangularis","pericalcarine","postcentral","posteriorcingulate",
+                "precentral","precuneus","rostralanteriorcingulate","rostralmiddlefrontal",
+                "superiorfrontal","superiorparietal","superiortemporal","supramarginal","frontalpole",
+                "temporalpole","transversetemporal","insula")
+
+dft2 = dft[!grepl(half_names[1], dft$NAME_region_measure_h,fixed=TRUE),]
+dft3 = dft[!grepl(half_names2[1], dft$NAME_region_measure_h,fixed=TRUE),]
+
+for (i in seq(2,length(half_names))){
+  dft2 = dft2[!grepl(half_names[i], dft2$NAME_region_measure_h,fixed=TRUE),]
+  dft3 = dft3[!grepl(half_names2[i], dft3$NAME_region_measure_h,fixed=TRUE),]
+}
+
+
 #group sex interaction
 DF_list = list()
 DF_list[[1]] = DF
@@ -441,30 +708,6 @@ plot(lsmeans(model_bvol2,pairwise~"group",by="sex"),comparison=TRUE)
 
 
 
-#### plot evt regulær model vs glob model, som parallel coordinate??
-DF$model_diff_pv <- NA
-DF$glob <- 0
-DF_glob$glob <- 1
-new <- rbind(DF, DF_glob)
-new$model_type[new$model_type == 1] = "no glob"
-new$model_type[new$model_type == 2] = "with glob"
-
-new$significant_GS[new$Group_sex_p_value < 0.05] = "G:S"
-new$significant_GS[new$Group_sex_p_value > 0.05] = "NO G:S"
-
-
-pcp=ggplot(new, aes(vars = vars(c(33,6,12,9,15,30)))) + #remember to change back to 32
-  geom_pcp_box(boxwidth=0.1, fill="grey") +
-  geom_pcp(boxwidth=0.1, aes(colour = factor(model_type))) +
-  geom_pcp_text(boxwidth=0.1) +
-  scale_colour_manual(values=c("darkorange", "steelblue")) + 
-  guides(colour=guide_legend(override.aes = list(alpha=1)))
-
-ps=grid.arrange(pcp)
-#ggsave(paste("pcp",".png",sep=""),ps,width = 10,height = 6)
-
-
-
 
 
 
@@ -534,17 +777,3 @@ plot(PH,comparison=TRUE,xlab=paste(model_vars[i],"lsmean"))
 model_check = lm(total_area ~ group*sex + age + site, data = datab)
 anova(model_check)
 
-
-
-#col_names = names(datab)
-#col_names = col_names[col_names %in% model_vars == FALSE]
-#col_names_rest = col_names[!grepl("^lh", col_names)]
-#col_names_rest = col_names_rest[!grepl("^rh", col_names_rest)]
-#col_names_rest = col_names[col_names %in% model_vars == FALSE]
-
-#nam = paste("sex1_",groups[g],"_diff",sep = "")
-#df1[[nam]] = as.numeric(df1[[nam]])
-#nam = paste("sex1_",groups[g],"_diff_LCL",sep = "")
-#df1[[nam]] = as.numeric(df1[[nam]])
-#nam = paste("sex1_",groups[g],"_diff_UCL",sep = "")
-#df1[[nam]] = as.numeric(df1[[nam]])

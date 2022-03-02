@@ -133,10 +133,28 @@ ps=grid.arrange(p_var[[3]])
 
 
 #WITH global variable covariate 
-model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + eICV_samseg + site, data=datab)
+model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + eICV_samseg + site, data=datab)
+#model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + eICV_samseg + site, data=datab)
+#model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
 anova(model_bvol_glob)
 model_bvol_glob = update(model_bvol_glob,~.-group:sex)
 anova(model_bvol_glob)
+micv = as.numeric(mean(datab$eICV_samseg))
+licv = as.numeric(quantile(datab$eICV_samseg)[2])
+uicv = as.numeric(quantile(datab$eICV_samseg)[4])
+
+micv = as.numeric(mean(datab$TotalEulerNumber))
+licv = as.numeric(quantile(datab$TotalEulerNumber)[2])
+uicv = as.numeric(quantile(datab$TotalEulerNumber)[4])
+
+ls = lsmeans(model_bvol_glob,"group",by="TotalEulerNumber",at = list(TotalEulerNumber = c(licv,micv,uicv)),adjust="none")
+plot(ls)
+lsmeans(model_bvol_glob,pairwise~"group",by="eICV_samseg",at = list(eICV_samseg = c(licv,micv,uicv)),adjust="none")
+lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
+
+emm = emmeans(model_bvol_glob,specs = "group",adjust="none")
+pwpp(emm)
+
 
 model_cvol_glob = lm(CortexVol ~ group*sex + age + eICV_samseg + site, data=datab)
 anova(model_cvol_glob)
@@ -207,36 +225,59 @@ for (i in seq(1,length(model_vars))){
     }
     model[[glob[g]]][[i]] = lm(f,data=datab)
     xvars = attributes(anova(model[[glob[g]]][[i]]))$row.names
-    
-    GS_pvals[[glob[g]]][[model_vars[i]]] = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"]
-    GS_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="group:sex"]
-    
-    sign_GS = 1
       
     if (anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"] > 0.05){
+      model_gs = model[[glob[g]]][[i]]
+      GS_pvals[[glob[g]]][[model_vars[i]]] = anova(model_gs)$"Pr(>F)"[xvars=="group:sex"]
+      GS_F = anova(model_gs)$"F value"[xvars=="group:sex"]
+      
       model[[glob[g]]][[i]] = update(model[[glob[g]]][[i]],~.-group:sex)
       sign_GS = 0
-    } 
-    
-    group_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="group"]
-    sex_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="sex"]
-    age_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="age"]
-    site_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="site"]
-    EulerNumber_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="TotalEulerNumber"]
-
-    group_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group"]
-    sex_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="sex"]
-    age_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="age"]
-    site_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="site"]
-    EulerNumber_pv = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="TotalEulerNumber"]
-    
-    rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],sign_GS)
-    
-    if (glob[g] == "with_eICV"){
-      df_with_ICV = rbindlist(list(df_with_ICV, rw))
+      models = list(model_gs,model[[glob[g]]][[i]])
     }
     else{
-      df_without_ICV = rbindlist(list(df_without_ICV, rw))
+      GS_pvals[[glob[g]]][[model_vars[i]]] = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"]
+      GS_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="group:sex"]
+      sign_GS = 1
+      models = list(model[[glob[g]]][[i]])
+    }
+    
+    for (m in seq(1,length(models))){
+      mm = models[[m]]
+      group_F = anova(mm)$"F value"[xvars=="group"]
+      sex_F = anova(mm)$"F value"[xvars=="sex"]
+      age_F = anova(mm)$"F value"[xvars=="age"]
+      site_F = anova(mm)$"F value"[xvars=="site"]
+      EulerNumber_F = anova(mm)$"F value"[xvars=="TotalEulerNumber"]
+      
+      group_pv = anova(mm)$"Pr(>F)"[xvars=="group"]
+      sex_pv = anova(mm)$"Pr(>F)"[xvars=="sex"]
+      age_pv = anova(mm)$"Pr(>F)"[xvars=="age"]
+      site_pv = anova(mm)$"Pr(>F)"[xvars=="site"]
+      EulerNumber_pv = anova(mm)$"Pr(>F)"[xvars=="TotalEulerNumber"]
+      
+      if (glob[g] == "with_eICV"){
+        ICV_F = anova(mm)$"F value"[xvars=="eICV_samseg"]
+        ICV_pv = anova(mm)$"Pr(>F)"[xvars=="eICV_samseg"]
+        
+        if (m==1){
+          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, ICV_F, ICV_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],sign_GS,m)
+        }
+        else{
+          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, ICV_F, ICV_pv, NA,   NA,                                  sign_GS,m-2)
+        }
+        df_with_ICV = rbindlist(list(df_with_ICV, rw))
+      }
+      else{
+        if (m==1){
+          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],sign_GS,m)
+        }
+        else{
+          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, NA,NA,sign_GS,m-2)
+        }
+        df_without_ICV = rbindlist(list(df_without_ICV, rw))
+      }
+      
     }
     
     emm[[g]] = emmeans(model[[glob[g]]][[i]],specs = "group",by="sex")
@@ -265,8 +306,10 @@ for (i in seq(1,length(model_vars))){
   ggsave(paste(model_vars[i],"_group_diff_pvalues_ICV",".png",sep=""),ga,width = 10,height = 10)
 }
 
-col_names = c("Model_yvar","Group_Fval","Group_pval","Sex_Fval","Sex_pval","Age_Fval","Age_pval","Site_Fval","Site_pval","EulerNumber_Fval","Eulernumber_pval","Group_sex_Fval","Group_sex_pval","Significant_GS_interaction")
-names(df_with_ICV)<-col_names
+col_names = c("Model_yvar","Group_Fval","Group_pval","Sex_Fval","Sex_pval","Age_Fval","Age_pval","Site_Fval","Site_pval","EulerNumber_Fval","Eulernumber_pval","Group_sex_Fval","Group_sex_pval","Significant_GS_interaction","model_with_GS")
+col_names_ICV = c("Model_yvar","Group_Fval","Group_pval","Sex_Fval","Sex_pval","Age_Fval","Age_pval","Site_Fval","Site_pval","EulerNumber_Fval","Eulernumber_pval","ICV_Fval","ICV_pval","Group_sex_Fval","Group_sex_pval","Significant_GS_interaction","model_with_GS")
+
+names(df_with_ICV)<-col_names_ICV
 names(df_without_ICV)<-col_names
 
 df_with_ICV[,2:ncol(df_with_ICV)] <- signif(df_with_ICV[,2:ncol(df_with_ICV)],digits=3)
