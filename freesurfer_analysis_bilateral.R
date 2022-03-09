@@ -72,6 +72,46 @@ datab$age = as.numeric(datab$MRI_age)
 
 
 
+##### Test individual region values
+model_IPvol = lm(bi_inferiorparietal_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
+anova(model_IPvol)
+#model_IPvol = update(model_IPvol,~.-group:sex)
+lsmeans(model_IPvol,pairwise~"group",by="sex",adjust="none")
+
+
+model_IPvol = lm(bi_inferiorparietal_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
+anova(model_IPvol)
+
+lsmeans(model_IPvol,pairwise~"group",by="sex",adjust="none")
+
+data_sex1 = datab[c(datab$sex == 1),]
+data_sex0 = datab[c(datab$sex == 0),]
+model_IPvol_sex1 = lm(bi_inferiorparietal_volume ~ group + age + TotalEulerNumber + site, data=data_sex1)
+model_IPvol_sex0 = lm(bi_inferiorparietal_volume ~ group + age + TotalEulerNumber + site, data=data_sex0)
+lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
+lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
+
+
+
+model_SPvol = lm(bi_superiorparietal_volume ~ group + sex + age + TotalEulerNumber + site, data=datab)
+anova(model_SPvol)
+lsmeans(model_SPvol,pairwise~"group",by="sex",adjust="none")
+
+
+
+
+model_MOFs = lm(bi_medialorbitofrontal_thickness ~ group + sex + age + TotalEulerNumber + eICV_samseg + site, data=datab)
+anova(model_MOFs)
+lsmeans(model_MOFs,pairwise~"group",by="sex",adjust="none")
+
+model_MOFs_sex0 = lm(bi_medialorbitofrontal_thickness ~ group + age + TotalEulerNumber + eICV_samseg + site, data=data_sex0)
+model_MOFs_sex1 = lm(bi_medialorbitofrontal_thickness ~ group + age + TotalEulerNumber + eICV_samseg + site, data=data_sex1)
+lsmeans(model_MOFs_sex0,pairwise~"group",adjust="none")
+lsmeans(model_MOFs_sex1,pairwise~"group",adjust="none")
+
+model_MOF = lm(bi_medialorbitofrontal_thickness ~ group + age + TotalEulerNumber + eICV_samseg + site, data=datab)
+anova(model_MOF)
+lsmeans(model_MOF,pairwise~"group",adjust="none")
 
 
 ###### make inference with models
@@ -120,7 +160,7 @@ for (j in seq(1,3)){
         model_ana = models_glob[[m[j]]][[model_yvars[k]]]
         xvars = attributes(anova(model_ana))$row.names
         pv_group_sex = anova(model_ana)$"Pr(>F)"[xvars=="group:sex"]
-        
+          
         if (anova(model_ana)$"Pr(>F)"[xvars=="group:sex"] > 0.05){
           model_ana = update(model_ana,~.-group:sex)
         } 
@@ -130,7 +170,7 @@ for (j in seq(1,3)){
       
       #use the above defined model_ana 
       
-      ls = lsmeans(model_ana,pairwise~"group", by = "sex")
+      ls = lsmeans(model_ana,pairwise~"group", by = "sex", adjust="none")
       c = ls$contrasts
       
       K_emm = summary(ls)$lsmeans$lsmean[summary(ls$lsmeans)$sex == 0][2]
@@ -174,7 +214,23 @@ for (j in seq(1,3)){
       
       pv_group = anova(model_ana)$"Pr(>F)"[1]
       
-      rw = list(model_yvars[k],pv_group,pv_group_sex, K_emm, sex1_K_emm,
+      mm = model_ana
+      
+      group_F = anova(mm)$"F value"[xvars=="group"]
+      sex_F = anova(mm)$"F value"[xvars=="sex"]
+      age_F = anova(mm)$"F value"[xvars=="age"]
+      site_F = anova(mm)$"F value"[xvars=="site"]
+      EulerNumber_F = anova(mm)$"F value"[xvars=="TotalEulerNumber"]
+      
+      group_pv = anova(mm)$"Pr(>F)"[xvars=="group"]
+      sex_pv = anova(mm)$"Pr(>F)"[xvars=="sex"]
+      age_pv = anova(mm)$"Pr(>F)"[xvars=="age"]
+      site_pv = anova(mm)$"Pr(>F)"[xvars=="site"]
+      EulerNumber_pv = anova(mm)$"Pr(>F)"[xvars=="TotalEulerNumber"]
+      
+      
+      #rows for xlsx table
+      rw = list(model_yvars[k],group_pv,pv_group_sex, K_emm, sex1_K_emm,
                 BP_diff, BP_diff_LCL, BP_diff_UCL, 
                 SZ_diff, SZ_diff_LCL, SZ_diff_UCL, 
                 sex1_BP_diff, sex1_BP_diff_LCL, sex1_BP_diff_UCL, 
@@ -184,13 +240,15 @@ for (j in seq(1,3)){
                 sex1_BP_diff_P, sex1_BP_diff_LCL_P, sex1_BP_diff_UCL_P, 
                 sex1_SZ_diff_P, sex1_SZ_diff_LCL_P, sex1_SZ_diff_UCL_P,mi)
       
-      rws0 = list(model_yvars[k], K_emm, sex1_K_emm, 
+      
+      #rows for data plotting data frame
+      rws0 = list(model_yvars[k], pv_group_sex, K_emm, sex1_K_emm, 
                   BP_diff, BP_diff_LCL, BP_diff_UCL, 
                   SZ_diff, SZ_diff_LCL, SZ_diff_UCL,
                   BP_diff_P, BP_diff_LCL_P, BP_diff_UCL_P, 
                   SZ_diff_P, SZ_diff_LCL_P, SZ_diff_UCL_P,0)
       
-      rws1 = list(model_yvars[k], K_emm, sex1_K_emm, 
+      rws1 = list(model_yvars[k], pv_group_sex, K_emm, sex1_K_emm, 
                   sex1_BP_diff, sex1_BP_diff_LCL, sex1_BP_diff_UCL,
                   sex1_SZ_diff, sex1_SZ_diff_LCL, sex1_SZ_diff_UCL,
                   sex1_BP_diff_P, sex1_BP_diff_LCL_P, sex1_BP_diff_UCL_P,
@@ -231,7 +289,7 @@ names(DF)<-c("model_yvar","Group_p_value","Group_sex_p_value","K_emm", "sex1_K_e
              "SZ_diff_P", "SZ_diff_LCL_P", "SZ_diff_UCL_P", 
              "sex1_BP_diff_P", "sex1_BP_diff_LCL_P", "sex1_BP_diff_UCL_P", 
              "sex1_SZ_diff_P", "sex1_SZ_diff_LCL_P", "sex1_SZ_diff_UCL_P","model_type")
-names(DFs)<-c("model_yvar","K_emm", "sex1_K_emm",
+names(DFs)<-c("model_yvar","Group_sex_p_value","K_emm", "sex1_K_emm",
               "BP_diff","BP_diff_LCL","BP_diff_UCL",
               "SZ_diff","SZ_diff_LCL","SZ_diff_UCL",
               "BP_diff_P", "BP_diff_LCL_P", "BP_diff_UCL_P",
@@ -245,7 +303,7 @@ names(DF_glob)<-c("model_yvar","Group_p_value","Group_sex_p_value","K_emm", "sex
                   "SZ_diff_P", "SZ_diff_LCL_P", "SZ_diff_UCL_P", 
                   "sex1_BP_diff_P", "sex1_BP_diff_LCL_P", "sex1_BP_diff_UCL_P", 
                   "sex1_SZ_diff_P", "sex1_SZ_diff_LCL_P", "sex1_SZ_diff_UCL_P","model_type")
-names(DFs_glob)<-c("model_yvar","K_emm", "sex1_K_emm",
+names(DFs_glob)<-c("model_yvar","Group_sex_p_value","K_emm", "sex1_K_emm",
                    "BP_diff","BP_diff_LCL","BP_diff_UCL",
                    "SZ_diff","SZ_diff_LCL","SZ_diff_UCL",
                    "BP_diff_P","BP_diff_LCL_P","BP_diff_UCL_P",
@@ -255,6 +313,9 @@ DFs$sex = as.factor(DFs$sex)
 DFs_glob$sex = as.factor(DFs_glob$sex)
 
 
+
+
+#change data frame for plotting
 
 pivot_cols = c("BP_diff_P","SZ_diff_P")
 DFp = DFs %>%
@@ -315,6 +376,12 @@ names(DF_CL) = c("diff_group_CL","diff_LCL_P","diff_UCL_P")
 DFp_glob = cbind(DFp_glob,DF_CL)
 
 
+DFp$Group_sex_sig = NA
+DFp_glob$Group_sex_sig = NA
+
+DFp$Group_sex_sig[DFp$Group_sex_p_value < 0.05] = -15
+DFp_glob$Group_sex_sig[DFp_glob$Group_sex_p_value < 0.05] = -15
+
 
 
 ###### mean difference plot
@@ -348,17 +415,16 @@ for (j in seq(1,length(m))){
         geom_line() + 
         ggtitle(paste(glob[g],":",sx[s])) + 
         geom_hline(yintercept = 0) + 
-        #geom_errorbar(aes_string(width=0.3,group="diff_group_CL",color="diff_group_CL",ymin="diff_LCL_P", ymax="diff_UCL_P" )) +
+        geom_errorbar(aes(width=0.3,group=diff_group_CL, color=diff_group_CL, ymin=diff_LCL_P, ymax=diff_UCL_P )) +
+        scale_color_manual("Group", values=c("#0072B2","#0072B2","#009E73", "#009E73"))+
+        
         geom_point(aes_string(group="diff_group",color="diff_group",x="model_yvar", y="diff_value_P")) +
-        theme(axis.text.x = element_text(color = "#993333", 
-                                         size = 8, angle = 90)) + #face = "bold",
-        ylim(-10, 10) +
+        geom_point(shape=8, aes_string(group="diff_group",x="model_yvar", y="Group_sex_sig")) +
+        theme(axis.text.x = element_text(color = "#993333", size = 8, angle = 90)) +
+        ylim(-15, 15) +
+        annotate("text", x = 6, y = 13,label = "* = Significant G/S interaction",family = "", fontface = 3, size=3)+
         {if (m[j]=="thickness") ylim(-3, 3)}
-        #{if (k==1) theme(legend.position = "none")} +
-        #{if (k==2) theme(axis.text.y=element_blank())} +
-        #{if (k==2) xlab(NULL)}
-        #coord_flip()
-      
+        {if (sx[s]=="male") theme(axis.text.x = element_text(color = "blue", size = 8, angle = 90))}
     } #end for s
 
   }
@@ -373,6 +439,7 @@ for (j in seq(1,length(m))){
 
 
 #mean difference for thickness without sex separation
+# only for thickness!!!
 
 ###### make inference with models
 models = list()
@@ -421,7 +488,7 @@ for (j in seq(2,2)){
       
       
       #use the above defined model_ana 
-      ls = lsmeans(model_ana,pairwise~"group")
+      ls = lsmeans(model_ana,pairwise~"group",adjust="none")
       c = ls$contrasts
       K_emm = summary(ls)$lsmeans$lsmean[2]
 
@@ -503,14 +570,10 @@ for (g in seq(1,2)){
       geom_hline(yintercept = 0) + 
       #geom_errorbar(aes_string(width=0.3,group="diff_group_CL",color="diff_group_CL",ymin="diff_LCL_P", ymax="diff_UCL_P" )) +
       geom_point(aes_string(group="diff_group",color="diff_group",x="model_yvar", y="diff_value_P")) +
-      theme(axis.text.x = element_text(color = "#993333", 
-                                       size = 8, angle = 90)) + #face = "bold",
+      theme(axis.text.x = element_text(color = "black", size = 8, angle = 90)) + 
       ylim(-10, 10) +
       {if (m[j]=="thickness") ylim(-3, 3)}
-    #{if (k==1) theme(legend.position = "none")} +
-    #{if (k==2) theme(axis.text.y=element_blank())} +
-    #{if (k==2) xlab(NULL)}
-    #coord_flip()
+      #coord_flip()
   
 }
 top_title = paste("Bilateral LSmean difference from control: thickness")
@@ -577,7 +640,7 @@ ps=grid.arrange(grobs=p_var)
 #ggsave(paste("original_unit_all_region_variance_",mm,".png",sep=""),ps,width = 14,height = 10)
 
 ps=grid.arrange(p_var[[2]])
-ggsave(paste("all_region_variance_",mm,".png",sep=""),ps,width = 14,height = 6)
+#ggsave(paste("all_region_variance_",mm,".png",sep=""),ps,width = 14,height = 6)
 
 
 p_var2 = list()
