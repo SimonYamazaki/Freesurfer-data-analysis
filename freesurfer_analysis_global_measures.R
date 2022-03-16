@@ -652,6 +652,8 @@ for (i in seq(1,length(model_vars))){
     } 
     else {
       
+      sign_GS = 1
+      
       rw = list(model_vars[i], sign_GS, 
                 as.numeric(NA), as.numeric(NA), as.numeric(NA),
                 as.numeric(NA), as.numeric(NA), as.numeric(NA))
@@ -672,7 +674,6 @@ for (i in seq(1,length(model_vars))){
           model_sex[[glob[g]]][[model_vars[i]]][[s]] = lm(f,data=data_sex1)
         }
         
-        sign_GS = 1
         lss = lsmeans(model_sex[[glob[g]]][[model_vars[i]]][[s]],pairwise~"group",adjust="none")
         cc = lss$contrasts
         
