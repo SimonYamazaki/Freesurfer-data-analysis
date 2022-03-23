@@ -20,6 +20,7 @@ library(ggpcp)
 library(ggnewscale)
 library(forcats)
 library(writexl)
+library(car)
 
 #load data
 data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
@@ -149,9 +150,22 @@ datab$ICV_ratio = datab$BrainTotalVol / datab$eICV_samseg
 model_bvol_glob = lm(ICV_ratio ~ group*sex + age + site, data=datab)
 anova(model_bvol_glob)
 
-model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + eICV_samseg + site, data=datab)
+model_bvol_glob = lm(BrainTotalVol ~ -1 + group*sex + age + TotalEulerNumber + eICV_samseg + site, data=datab)
+model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
 #model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + eICV_samseg + site, data=datab)
 #model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
+model_bvol_glob = update(model_bvol_glob,~.-group:sex)
+
+anova(model_bvol_glob)
+Anova(model_bvol_glob,type="II")
+Anova(model_bvol_glob,type="III")
+
+drop1(model_bvol_glob, test="F")
+
+
+lsmeans(model_bvol_glob,pairwise~"group",by="sex",adjust="none")
+
+
 anova(model_bvol_glob)
 summary(model_bvol_glob)
 model_bvol_glob = update(model_bvol_glob,~.-group:sex)
@@ -176,8 +190,8 @@ uicv = as.numeric(quantile(datab$TotalEulerNumber)[4])
 
 ls = lsmeans(model_bvol_glob,"group",by="TotalEulerNumber",at = list(TotalEulerNumber = c(licv,micv,uicv)),adjust="none")
 plot(ls)
-lsmeans(model_bvol_glob,pairwise~"group",by="eICV_samseg",at = list(eICV_samseg = c(licv,micv,uicv)),adjust="none")
-lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
+#lsmeans(model_bvol_glob,pairwise~"group",by="eICV_samseg",at = list(eICV_samseg = c(licv,micv,uicv)),adjust="none")
+#lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
 
 emm = emmeans(model_bvol_glob,specs = "group",adjust="none")
 pwpp(emm)
@@ -258,41 +272,41 @@ for (i in seq(1,length(model_vars))){
       f = paste(model_vars[i],"~","+","group*sex","+","age","+","site","+","TotalEulerNumber")
     }
     model[[glob[g]]][[i]] = lm(f,data=datab)
-    xvars = attributes(anova(model[[glob[g]]][[i]]))$row.names
+    xvars = attributes(Anova(model[[glob[g]]][[i]],type = "III"))$row.names
       
-    if (anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"] > 0.05){
+    if (Anova(model[[glob[g]]][[i]],type = "III")$"Pr(>F)"[xvars=="group:sex"] > 0.05){
       model_gs = model[[glob[g]]][[i]]
-      GS_pvals[[glob[g]]][[model_vars[i]]] = anova(model_gs)$"Pr(>F)"[xvars=="group:sex"]
-      GS_F = anova(model_gs)$"F value"[xvars=="group:sex"]
+      GS_pvals[[glob[g]]][[model_vars[i]]] = Anova(model_gs,type = "III")$"Pr(>F)"[xvars=="group:sex"]
+      GS_F = Anova(model_gs,type = "III")$"F value"[xvars=="group:sex"]
       
       model[[glob[g]]][[i]] = update(model[[glob[g]]][[i]],~.-group:sex)
       sign_GS = 0
       models = list(model_gs,model[[glob[g]]][[i]])
     }
     else{
-      GS_pvals[[glob[g]]][[model_vars[i]]] = anova(model[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"]
-      GS_F = anova(model[[glob[g]]][[i]])$"F value"[xvars=="group:sex"]
+      GS_pvals[[glob[g]]][[model_vars[i]]] = Anova(model[[glob[g]]][[i]],type = "III")$"Pr(>F)"[xvars=="group:sex"]
+      GS_F = Anova(model[[glob[g]]][[i]],type = "III")$"F value"[xvars=="group:sex"]
       sign_GS = 1
       models = list(model[[glob[g]]][[i]])
     }
     
     for (m in seq(1,length(models))){
       mm = models[[m]]
-      group_F = anova(mm)$"F value"[xvars=="group"]
-      sex_F = anova(mm)$"F value"[xvars=="sex"]
-      age_F = anova(mm)$"F value"[xvars=="age"]
-      site_F = anova(mm)$"F value"[xvars=="site"]
-      EulerNumber_F = anova(mm)$"F value"[xvars=="TotalEulerNumber"]
+      group_F = Anova(mm,type = "III")$"F value"[xvars=="group"]
+      sex_F = Anova(mm,type = "III")$"F value"[xvars=="sex"]
+      age_F = Anova(mm,type = "III")$"F value"[xvars=="age"]
+      site_F = Anova(mm,type = "III")$"F value"[xvars=="site"]
+      EulerNumber_F = Anova(mm,type = "III")$"F value"[xvars=="TotalEulerNumber"]
       
-      group_pv = anova(mm)$"Pr(>F)"[xvars=="group"]
-      sex_pv = anova(mm)$"Pr(>F)"[xvars=="sex"]
-      age_pv = anova(mm)$"Pr(>F)"[xvars=="age"]
-      site_pv = anova(mm)$"Pr(>F)"[xvars=="site"]
-      EulerNumber_pv = anova(mm)$"Pr(>F)"[xvars=="TotalEulerNumber"]
+      group_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="group"]
+      sex_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="sex"]
+      age_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="age"]
+      site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
+      EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
       
       if (glob[g] == "with_eICV"){
-        ICV_F = anova(mm)$"F value"[xvars=="eICV_samseg"]
-        ICV_pv = anova(mm)$"Pr(>F)"[xvars=="eICV_samseg"]
+        ICV_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
+        ICV_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
         
         if (m==1){
           rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, ICV_F, ICV_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],sign_GS,m)
@@ -1009,6 +1023,6 @@ for (g in seq(1,length(glob))){
   
   top_title = paste("LSmeans contrasts of model",glob[g])
   ga=grid.arrange(grobs=pls,ncols=2, top=textGrob(top_title,gp=gpar(fontsize=20)))
-  ggsave(paste("LSmeans_contrasts_on_datapoints_",glob[g],"_alt.png",sep=""),ga,width = 10,height = 10)
+  #ggsave(paste("LSmeans_contrasts_on_datapoints_",glob[g],"_alt.png",sep=""),ga,width = 10,height = 10)
   
 } #g

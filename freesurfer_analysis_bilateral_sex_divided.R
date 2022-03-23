@@ -17,7 +17,7 @@ library(grid)
 library(Cairo)
 library(grDevices)
 library(ggpcp)
-
+library(car)
 
 #load data
 data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
@@ -76,6 +76,39 @@ data_sex1 = datab[c(datab$sex == 1),]
 data_sex0 = datab[c(datab$sex == 0),]
 dataf = list(data_sex0,data_sex1)
 
+model_IPvol = lm(bi_bankssts_area ~ site + TotalEulerNumber + sex + age + total_area + group, data=datab)
+anova(model_IPvol)
+model_IPvol = lm(bi_bankssts_area ~ group + sex + age + site + TotalEulerNumber + total_area, data=datab)
+anova(model_IPvol)
+lsmeans(model_IPvol,pairwise~"group",adjust="none")
+
+
+#sanity checks 
+model_IPvol_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex1)
+model_IPvol_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex0)
+anova(model_IPvol_sex1)
+anova(model_IPvol_sex0)
+
+Anova(model_IPvol_sex1,type="II")
+Anova(model_IPvol_sex1,type="III")
+
+
+ls1 = lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
+ls0 = lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
+ls1
+ls0
+confint(ls1)
+confint(ls0)
+
+
+modelm = lm(bi_insula_volume ~ group+ sex + age + site + TotalEulerNumber + BrainTotalVol, data = datab)
+xvars = attributes(Anova(modelm,type="II"))$row.names
+Anova(modelm,type="II")$"F value"[xvars=="group"]
+xvars = attributes(Anova(modelm,type="III"))$row.names
+Anova(modelm,type="III")$"F value"[xvars=="group"]
+
+
+
 
 ###### make inference with models
 models = list()
@@ -99,8 +132,8 @@ for (j in seq(1,3)){
         models[[m[j]]][[model_yvars[k]]] = lm(f,data=dataf[[s]])
         
         model_ana = models[[m[j]]][[model_yvars[k]]]
-        xvars = attributes(anova(model_ana))$row.names
-
+        xvars = attributes(Anova(model_ana,type = "III"))$row.names
+        
       }
       else {
         #global measure model
@@ -118,7 +151,7 @@ for (j in seq(1,3)){
         }
         models_glob[[m[j]]][[model_yvars[k]]] = lm(f2,data=dataf[[s]])
         model_ana = models_glob[[m[j]]][[model_yvars[k]]]
-        xvars = attributes(anova(model_ana))$row.names
+        xvars = attributes(Anova(model_ana,type = "III"))$row.names
       }
       
       
@@ -150,21 +183,21 @@ for (j in seq(1,3)){
       BP_diff_LCL_P = 100*BP_diff_LCL /K_emm
       BP_diff_UCL_P = 100*BP_diff_UCL /K_emm
       
-      SZ_diff_P = -100*SZ_diff /K_emm
+      SZ_diff_P = 100*SZ_diff /K_emm
       SZ_diff_LCL_P = -100*SZ_diff_LCL /K_emm
       SZ_diff_UCL_P = -100*SZ_diff_UCL /K_emm
       
       mm = model_ana
       
-      group_F = anova(mm)$"F value"[xvars=="group"]
-      age_F = anova(mm)$"F value"[xvars=="age"]
-      site_F = anova(mm)$"F value"[xvars=="site"]
-      EulerNumber_F = anova(mm)$"F value"[xvars=="TotalEulerNumber"]
+      group_F = Anova(mm,type="III")$"F value"[xvars=="group"]
+      age_F = Anova(mm,type = "III")$"F value"[xvars=="age"]
+      site_F = Anova(mm,type = "III")$"F value"[xvars=="site"]
+      EulerNumber_F = Anova(mm,type = "III")$"F value"[xvars=="TotalEulerNumber"]
       
-      group_pv = anova(mm)$"Pr(>F)"[xvars=="group"]
-      age_pv = anova(mm)$"Pr(>F)"[xvars=="age"]
-      site_pv = anova(mm)$"Pr(>F)"[xvars=="site"]
-      EulerNumber_pv = anova(mm)$"Pr(>F)"[xvars=="TotalEulerNumber"]
+      group_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="group"]
+      age_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="age"]
+      site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
+      EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
       
       if (g == 0){
         #no global measure model
@@ -173,8 +206,8 @@ for (j in seq(1,3)){
       }       
       else{
         #global measure model
-        glob_var_F = anova(mm)$"F value"[xvars==glob_var]
-        glob_var_pv = anova(mm)$"Pr(>F)"[xvars==glob_var]
+        glob_var_F = Anova(mm,type = "III")$"F value"[xvars==glob_var]
+        glob_var_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars==glob_var]
         
       } 
       
