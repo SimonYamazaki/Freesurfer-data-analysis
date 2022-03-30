@@ -142,59 +142,19 @@ anova(model_bvol_glob)
 lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
 
 
-
 datab$eICV_samseg_demean = datab$eICV_samseg - mean(datab$eICV_samseg)
-
 datab$ICV_ratio = datab$BrainTotalVol / datab$eICV_samseg
-
 model_bvol_glob = lm(ICV_ratio ~ group*sex + age + site, data=datab)
 anova(model_bvol_glob)
 
 model_bvol_glob = lm(BrainTotalVol ~ -1 + group*sex + age + TotalEulerNumber + eICV_samseg + site, data=datab)
 model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
-#model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + eICV_samseg + site, data=datab)
-#model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
 model_bvol_glob = update(model_bvol_glob,~.-group:sex)
 
-anova(model_bvol_glob)
 Anova(model_bvol_glob,type="II")
 Anova(model_bvol_glob,type="III")
-
 drop1(model_bvol_glob, test="F")
 
-
-lsmeans(model_bvol_glob,pairwise~"group",by="sex",adjust="none")
-
-
-anova(model_bvol_glob)
-summary(model_bvol_glob)
-model_bvol_glob = update(model_bvol_glob,~.-group:sex)
-
-model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + eICV_samseg + site, data=datab)
-anova(model_bvol_glob)
-
-model_bvol_glob = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab)
-anova(model_bvol_glob)
-summary(model_bvol_glob)
-lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
-
-
-
-micv = as.numeric(mean(datab$eICV_samseg))
-licv = as.numeric(quantile(datab$eICV_samseg)[2])
-uicv = as.numeric(quantile(datab$eICV_samseg)[4])
-
-micv = as.numeric(mean(datab$TotalEulerNumber))
-licv = as.numeric(quantile(datab$TotalEulerNumber)[2])
-uicv = as.numeric(quantile(datab$TotalEulerNumber)[4])
-
-ls = lsmeans(model_bvol_glob,"group",by="TotalEulerNumber",at = list(TotalEulerNumber = c(licv,micv,uicv)),adjust="none")
-plot(ls)
-#lsmeans(model_bvol_glob,pairwise~"group",by="eICV_samseg",at = list(eICV_samseg = c(licv,micv,uicv)),adjust="none")
-#lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
-
-emm = emmeans(model_bvol_glob,specs = "group",adjust="none")
-pwpp(emm)
 
 
 model_cvol_glob = lm(CortexVol ~ group*sex + age + eICV_samseg + site, data=datab)
@@ -211,7 +171,7 @@ model_mt_glob = lm(mean_thickness ~ group*sex + age + eICV_samseg + site, data=d
 anova(model_mt_glob)
 model_mt_glob = update(model_mt_glob,~.-group:sex)
 anova(model_mt_glob)
-lsmeans(model_mt_glob,pairwise~"group")
+lsmeans(model_mt_glob,pairwise~"group",adjust="none")
 
 
 #WITHOUT global variable models 
@@ -221,7 +181,6 @@ summary(model_bvol)
 
 model_cvol = lm(CortexVol ~ group*sex + age + site, data=datab)
 anova(model_cvol)
-
 
 model_area = lm(total_area ~ group*sex + age + site + TotalEulerNumber, data=datab)
 anova(model_area)
@@ -252,16 +211,14 @@ min_emm = list()
 max_emm = list()
 model = list()
 
-df_with_ICV = data.frame()
-df_without_ICV = data.frame()
-
+DF = data.frame()
 
 for (i in seq(1,length(model_vars))){
   if (model_vars[i] == "eICV_samseg"){
     glob = c("without_eICV")
   }
   else{
-    glob = c("with_eICV", "without_eICV")
+    glob = c("without_eICV","with_eICV")
   }
 
   for (g in seq(1,length(glob))){
@@ -307,93 +264,71 @@ for (i in seq(1,length(model_vars))){
       if (glob[g] == "with_eICV"){
         ICV_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
         ICV_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
-        
-        if (m==1){
-          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, ICV_F, ICV_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],sign_GS,m)
-        }
-        else{
-          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, ICV_F, ICV_pv, NA,   NA,                                  sign_GS,m-2)
-        }
-        df_with_ICV = rbindlist(list(df_with_ICV, rw))
       }
       else{
-        if (m==1){
-          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],sign_GS,m)
-        }
-        else{
-          rw = list(model_vars[i], group_F, group_pv, sex_F, sex_pv, age_F, age_pv, site_F, site_pv, EulerNumber_F, EulerNumber_pv, NA,NA,sign_GS,m-2)
-        }
-        df_without_ICV = rbindlist(list(df_without_ICV, rw))
+        ICV_F = NA
+        ICV_pv = NA
+      }       
+
+        
+      if (m==1){
+        rw = list(model_vars[i], 
+                  group_F, group_pv, sex_F, sex_pv,
+                  age_F, age_pv, site_F, site_pv, 
+                  EulerNumber_F, EulerNumber_pv, 
+                  ICV_F, ICV_pv, GS_F, GS_pvals[[glob[g]]][[model_vars[i]]],
+                  sign_GS,m,g-1)
+      }
+      else{
+        rw = list(model_vars[i], 
+                  group_F, group_pv, sex_F, sex_pv, 
+                  age_F, age_pv, site_F, site_pv, 
+                  EulerNumber_F, EulerNumber_pv, 
+                  ICV_F, ICV_pv, NA,   NA,
+                  sign_GS,m-2,g-1)
       }
       
-    }
-    
-    emm[[g]] = emmeans(model[[glob[g]]][[i]],specs = "group",by="sex")
-    ps[[g]] = pwpp(emm[[g]],adjust="none",sort = FALSE) +
-              #aes(y = factor("group", level = c("BP","K","SZ"))) +
-              labs(x="Uncorrected P-value") +
-              ggtitle(paste(glob[g])) +
-              geom_vline(xintercept = 0.05,linetype="dashed") +
-              coord_flip()
-    
-    min_emm[[g]] = min(summary(emm[[g]])$emmean)
-    max_emm[[g]] = max(summary(emm[[g]])$emmean)
+      DF = rbindlist(list(DF, rw))
+      
+    } # for m 
   } #g
-  
-  for (g in seq(1,2)){
-  ps[[g+2]] = plot(emm[[g]]) +
-              aes(color=group) +
-              facet_grid(cols =vars(sex)) +
-              scale_x_continuous(limits = c(min(unlist(min_emm)), max(unlist(max_emm)))) +
-              scale_y_discrete(limits=c("BP","K","SZ")) +
-              coord_flip()
-  }
-  
-  top_title = paste(model_vars[i]," models")
-  ga=grid.arrange(grobs=ps, ncol=2,top=textGrob(top_title,gp=gpar(fontsize=20)))
-  ggsave(paste(model_vars[i],"_group_diff_pvalues_ICV",".png",sep=""),ga,width = 10,height = 10)
-}
+} #end i
 
-col_names = c("Model_yvar","Group_Fval","Group_pval","Sex_Fval","Sex_pval","Age_Fval","Age_pval","Site_Fval","Site_pval","EulerNumber_Fval","Eulernumber_pval","Group_sex_Fval","Group_sex_pval","Significant_GS_interaction","model_with_GS")
-col_names_ICV = c("Model_yvar","Group_Fval","Group_pval","Sex_Fval","Sex_pval","Age_Fval","Age_pval","Site_Fval","Site_pval","EulerNumber_Fval","Eulernumber_pval","ICV_Fval","ICV_pval","Group_sex_Fval","Group_sex_pval","Significant_GS_interaction","model_with_GS")
+col_names = c("Model_yvar",
+                  "Group_Fval","Group_pval","Sex_Fval","Sex_pval",
+                  "Age_Fval","Age_pval","Site_Fval","Site_pval",
+                  "EulerNumber_Fval","Eulernumber_pval",
+                  "ICV_Fval","ICV_pval","Group_sex_Fval","Group_sex_pval",
+                  "Significant_GS_interaction","GS_in_model","global_var_in_model")
 
-names(df_with_ICV)<-col_names_ICV
-names(df_without_ICV)<-col_names
+names(DF)<-col_names
 
-df_with_ICV[,2:ncol(df_with_ICV)] <- signif(df_with_ICV[,2:ncol(df_with_ICV)],digits=3)
-df_without_ICV[,2:ncol(df_without_ICV)] <- signif(df_without_ICV[,2:ncol(df_without_ICV)],digits=3)
+#df_with_ICV[,2:ncol(df_with_ICV)] <- signif(df_with_ICV[,2:ncol(df_with_ICV)],digits=3)
+#df_without_ICV[,2:ncol(df_without_ICV)] <- signif(df_without_ICV[,2:ncol(df_without_ICV)],digits=3)
 
-write_xlsx(df_with_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/ANOVA_pvals_with_ICV.xlsx")
-write_xlsx(df_without_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/ANOVA_pvals_without_ICV.xlsx")
+DF_xlsx_glob0 = DF[DF$global_var_in_model == 0, ]
+DF_xlsx_glob1 = DF[DF$global_var_in_model == 1, ]
+
+write_xlsx(DF_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_with_ICV.xlsx")
+write_xlsx(DF_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_without_ICV.xlsx")
 
 
 
-### run models with euler number as covariate and without
 
-model_vars = c("BrainTotalVol", "CortexVol", "total_area","mean_thickness")
-glob = c("with_euler", "without_euler")
-ps = list()
-emm = list()
-min_emm = list()
-max_emm = list()
-model_e = list()
+
+
+### plot ppwp
 
 for (i in seq(1,length(model_vars))){
-  for (g in seq(1,2)){
-    if (glob[g] == "with_euler"){
-      f = paste(model_vars[i],"~","+","group*sex","+","age","+","TotalEulerNumber","+","site")
-    }
-    else{
-      f = paste(model_vars[i],"~","+","group*sex","+","age","+","site")
-    }
-    model_e[[glob[g]]][[i]] = lm(f,data=datab)
-    xvars = attributes(anova(model_e[[glob[g]]][[i]]))$row.names
-    
-    if (anova(model_e[[glob[g]]][[i]])$"Pr(>F)"[xvars=="group:sex"] > 0.05){
-      model_e[[glob[g]]][[i]] = update(model_e[[glob[g]]][[i]],~.-group:sex)
-    } 
-    
-    emm[[g]] = emmeans(model_e[[glob[g]]][[i]],specs = "group",by="sex")
+  if (model_vars[i] == "eICV_samseg"){
+    glob = c("without_eICV")
+  }
+  else{
+    glob = c("with_eICV", "without_eICV")
+  }
+  
+  for (g in seq(1,length(glob))){
+    emm[[g]] = emmeans(model[[glob[g]]][[i]],specs = "group",by="sex")
     ps[[g]] = pwpp(emm[[g]],adjust="none",sort = FALSE) +
       #aes(y = factor("group", level = c("BP","K","SZ"))) +
       labs(x="Uncorrected P-value") +
@@ -403,22 +338,19 @@ for (i in seq(1,length(model_vars))){
     
     min_emm[[g]] = min(summary(emm[[g]])$emmean)
     max_emm[[g]] = max(summary(emm[[g]])$emmean)
-  } #g
-  
-  for (g in seq(1,2)){
+
     ps[[g+2]] = plot(emm[[g]]) +
       aes(color=group) +
       facet_grid(cols =vars(sex)) +
       scale_x_continuous(limits = c(min(unlist(min_emm)), max(unlist(max_emm)))) +
       scale_y_discrete(limits=c("BP","K","SZ")) +
       coord_flip()
-  }
-  
-  top_title = paste(model_vars[i]," models","without ICV")
-  ga=grid.arrange(grobs=ps, ncol=2,top=textGrob(top_title,gp=gpar(fontsize=20)))
-  ggsave(paste("eulernumber_plots/",model_vars[i],"_group_diff_pvalues_Euler",".png",sep=""),ga,width = 10,height = 10)
-}
+    } #end g
 
+top_title = paste(model_vars[i]," models")
+ga=grid.arrange(grobs=ps, ncol=2,top=textGrob(top_title,gp=gpar(fontsize=20)))
+ggsave(paste(model_vars[i],"_group_diff_pvalues_ICV",".png",sep=""),ga,width = 10,height = 10)
+} #end i
 
 
 
@@ -460,69 +392,8 @@ for (i in seq(1,length(y_vars))){
     }
   else{
     dftm$NORM_measure_K[ dftm$NAME_measure  == y_vars[i] ] = ( dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-    ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
+    #ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
     }
-  
-  
-  lss = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
-  cc = lss$contrasts
-  
-
-  if (GS_pvals[[glob[g]]][[y_vars[i]]] > 0.05){
-    sign_GS = 0
-    lss = lsmeans(model[[glob[g]]][[i]],pairwise~"group",adjust="none")
-    cc = lss$contrasts
-    
-    #raw contrasts
-    BP_diff = summary(cc)$estimate[1]
-    BP_diff_tratio = summary(cc)$t.ratio[1]
-    BP_diff_pval = summary(cc)$p.value[1]
-    
-    SZ_diff = summary(cc)$estimate[3]
-    SZ_diff_tratio = summary(cc)$t.ratio[3]
-    SZ_diff_pval = summary(cc)$p.value[3]
-    
-    rw = list(y_vars[i], sign_GS, 
-              BP_diff, BP_diff_tratio, BP_diff_pval,
-              SZ_diff, SZ_diff_tratio, SZ_diff_pval,
-              as.numeric(NA), as.numeric(NA), as.numeric(NA),
-              as.numeric(NA), as.numeric(NA), as.numeric(NA),
-              as.numeric(NA), as.numeric(NA), as.numeric(NA), 
-              as.numeric(NA), as.numeric(NA), as.numeric(NA))
-    
-  } 
-  else {
-    sign_GS = 1
-    lss = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
-    cc = lss$contrasts
-    
-    #raw contrasts
-    sex0_BP_diff = summary(cc)$estimate[summary(cc)$sex == 0][1]
-    sex0_BP_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 0][1]
-    sex0_BP_diff_pval = summary(cc)$p.value[summary(cc)$sex == 0][1]
-    
-    sex0_SZ_diff = summary(cc)$estimate[summary(cc)$sex == 0][3]
-    sex0_SZ_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 0][3]
-    sex0_SZ_diff_pval = summary(cc)$p.value[summary(cc)$sex == 0][3]
-    
-    sex1_BP_diff = summary(cc)$estimate[summary(cc)$sex == 1][1]
-    sex1_BP_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 1][1]
-    sex1_BP_diff_pval = summary(cc)$p.value[summary(cc)$sex == 1][1]
-    
-    sex1_SZ_diff = summary(cc)$estimate[summary(cc)$sex == 1][3]
-    sex1_SZ_diff_tratio = summary(cc)$t.ratio[summary(cc)$sex == 1][3]
-    sex1_SZ_diff_pval = summary(cc)$p.value[summary(cc)$sex == 1][3]
-    
-    rw = list(y_vars[i], sign_GS, 
-              as.numeric(NA), as.numeric(NA), as.numeric(NA),
-              as.numeric(NA), as.numeric(NA), as.numeric(NA),
-              sex0_BP_diff, sex0_BP_diff_tratio, sex0_BP_diff_pval,
-              sex0_SZ_diff, sex0_SZ_diff_tratio, sex0_SZ_diff_pval,
-              sex1_BP_diff, sex1_BP_diff_tratio, sex1_BP_diff_pval,
-              sex1_SZ_diff, sex1_SZ_diff_tratio, sex1_SZ_diff_pval)
-    
-  } 
-  
   
   ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
   c = ls$contrasts
@@ -546,15 +417,6 @@ for (i in seq(1,length(y_vars))){
   sex1_SZ_diff_P = -100*summary(c)$estimate[summary(c)$sex == 1][3] /sex1_K_emm
   sex1_SZ_diff_LCL_P = -100*confint(c)$lower.CL[confint(c)$sex == 1][3] /sex1_K_emm
   sex1_SZ_diff_UCL_P = -100*confint(c)$upper.CL[confint(c)$sex == 1][3] /sex1_K_emm
-
-  
-  if (glob[g] == "with_eICV"){
-    dfc_with_ICV = rbindlist(list(dfc_with_ICV, rw))
-  }
-  else{
-    dfc_without_ICV = rbindlist(list(dfc_without_ICV, rw))
-  }
-  
   
   
   ###
@@ -588,22 +450,6 @@ for (i in seq(1,length(y_vars))){
 }
 
 
-col_names = c("Model_yvar", "Significant_GS_interaction",
-              "Contrast_BP-K","tratio_BP-K","pval_BP-K",
-              "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
-              "Sex0_Contrast_BP-K","Sex0_tratio_BP-K","Sex0_pval_BP-K",
-              "Sex0_Contrast_SZ-K","Sex0_tratio_SZ-K","Sex0_pval_SZ-K",
-              "Sex1_Contrast_BP-K","Sex1_tratio_BP-K","Sex1_pval_BP-K",
-              "Sex1_Contrast_SZ-K","Sex1_tratio_SZ-K","Sex1_pval_SZ-K")
-names(dfc_with_ICV)<-col_names
-names(dfc_without_ICV)<-col_names
-
-dfc_with_ICV[,2:ncol(dfc_with_ICV)] <- signif(dfc_with_ICV[,2:ncol(dfc_with_ICV)],digits=3)
-dfc_without_ICV[,2:ncol(dfc_without_ICV)] <- signif(dfc_without_ICV[,2:ncol(dfc_without_ICV)],digits=3)
-
-#write_xlsx(dfc_with_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Model_contrasts_with_ICV.xlsx")
-#write_xlsx(dfc_without_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Model_contrasts_without_ICV.xlsx")
-
 
 
 
@@ -613,18 +459,120 @@ model_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eI
 
 data_sex1 = datab[c(datab$sex == 1),]
 data_sex0 = datab[c(datab$sex == 0),]
+dataf = list(data_sex0, data_sex1)
+
+models = list()
+models_glob = list()
+
+DFc = data.frame()
+
+for (k in seq(1,length(model_vars))){
+  for (s in seq(0,1)){
+    ss = s+1
+    
+    for (g in seq(0,1)){
+      
+      if (g == 0){
+        #no global measure model
+        f = paste(model_vars[k],"~","group","+","age","+","site","+","TotalEulerNumber")
+        models[[model_vars[k]]] = lm(f,data=dataf[[ss]])
+        
+        model_ana = models[[model_vars[k]]]
+        xvars = attributes(Anova(model_ana,type = "III"))$row.names
+        
+      }
+      else {
+        #global measure model
+        f2 = paste(model_vars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+","eICV_samseg")
+
+        models_glob[[model_vars[k]]] = lm(f2,data=dataf[[ss]])
+        model_ana = models_glob[[model_vars[k]]]
+        xvars = attributes(Anova(model_ana,type = "III"))$row.names
+      }
+      
+      
+      #use the above defined model_ana 
+      
+      ls = lsmeans(model_ana,pairwise~"group", adjust="none")
+      c = ls$contrasts
+      
+      K_emm = summary(ls)$lsmeans$lsmean[2]
+      
+      #raw contrasts
+      BP_diff = summary(c)$estimate[1]
+      BP_diff_pv = summary(c)$"p.value"[1]
+      BP_diff_tratio = summary(c)$"t.ratio"[1]
+      BP_diff_LCL = confint(c)$lower.CL[1]
+      BP_diff_UCL = confint(c)$upper.CL[1]
+      
+      
+      SZ_diff = -summary(c)$estimate[3]
+      SZ_diff_pv = summary(c)$"p.value"[3]
+      SZ_diff_tratio = summary(c)$"t.ratio"[3]
+      SZ_diff_LCL = -confint(c)$lower.CL[3]
+      SZ_diff_UCL = -confint(c)$upper.CL[3]
+      
+      
+      #percent difference
+      BP_diff_P = 100*BP_diff /K_emm
+      BP_diff_LCL_P = 100*BP_diff_LCL /K_emm
+      BP_diff_UCL_P = 100*BP_diff_UCL /K_emm
+      
+      SZ_diff_P = 100*SZ_diff /K_emm
+      SZ_diff_LCL_P = 100*SZ_diff_LCL /K_emm
+      SZ_diff_UCL_P = 100*SZ_diff_UCL /K_emm
+      
+      
+      #rows for contrast xlsx table
+      rwc_xlsx = list(model_vars[k],K_emm,
+                      BP_diff,BP_diff_tratio,BP_diff_pv,
+                      SZ_diff,SZ_diff_tratio,SZ_diff_pv,
+                      g,s)
+      
+      DFc = rbindlist(list(DFc, rwc_xlsx))
+      
+    } #g 
+  } #s
+} #k
+
+
+col_names = c("Model_yvar", "K_LSmean",
+              "Contrast_BP-K","tratio_BP-K","pval_BP-K",
+              "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
+              "ICV_in_model","sex")
+names(DFc)<-col_names
+
+
+DF_xlsx_glob0 = DFc[DFc$ICV_in_model == 0, ]
+DF_xlsx_glob1 = DFc[DFc$ICV_in_model == 1, ]
+
+write_xlsx(DF_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_Model_contrasts_with_ICV.xlsx")
+write_xlsx(DF_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_Model_contrasts_without_ICV.xlsx")
+
+
+
+
+
+
+
+### OLD which takes GS interaction into account
+#### REDO CONTRAST XLSX with male / female split
+
+model_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
+
+data_sex1 = datab[c(datab$sex == 1),]
+data_sex0 = datab[c(datab$sex == 0),]
 
 model_sex = list()
 
-dfc_with_ICV = data.frame()
-dfc_without_ICV = data.frame()
+dfc = data.frame()
 
 for (i in seq(1,length(model_vars))){
   if (model_vars[i] == "eICV_samseg"){
     glob = c("without_eICV")
   }
   else{
-    glob = c("with_eICV", "without_eICV")
+    glob = c("without_eICV","with_eICV")
   }
   for (g in seq(1,length(glob))){
     
@@ -645,6 +593,7 @@ for (i in seq(1,length(model_vars))){
       sign_GS = 0
       lss = lsmeans(model[[glob[g]]][[i]],pairwise~"group",adjust="none")
       cc = lss$contrasts
+      K_emm = summary(lss)$lsmeans$lsmean[2]
       
       #raw contrasts
       BP_diff = summary(cc)$estimate[1]
@@ -655,7 +604,7 @@ for (i in seq(1,length(model_vars))){
       SZ_diff_tratio = summary(cc)$t.ratio[3]
       SZ_diff_pval = summary(cc)$p.value[3]
       
-      rw = list(y_vars[i], sign_GS, 
+      rw = list(model_vars[i], sign_GS, K_emm,
                 BP_diff, BP_diff_tratio, BP_diff_pval,
                 SZ_diff, SZ_diff_tratio, SZ_diff_pval,
                 as.numeric(NA), as.numeric(NA), as.numeric(NA),
@@ -668,7 +617,7 @@ for (i in seq(1,length(model_vars))){
       
       sign_GS = 1
       
-      rw = list(model_vars[i], sign_GS, 
+      rw = list(model_vars[i], sign_GS, K_emm,
                 as.numeric(NA), as.numeric(NA), as.numeric(NA),
                 as.numeric(NA), as.numeric(NA), as.numeric(NA))
                 
@@ -718,7 +667,8 @@ for (i in seq(1,length(model_vars))){
 }
 
 
-col_names = c("Model_yvar", "Significant_GS_interaction",
+
+col_names = c("Model_yvar", "Significant_GS_interaction", "K_LSmean",
               "Contrast_BP-K","tratio_BP-K","pval_BP-K",
               "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
               "Sex0_Contrast_BP-K","Sex0_tratio_BP-K","Sex0_pval_BP-K",
@@ -728,11 +678,8 @@ col_names = c("Model_yvar", "Significant_GS_interaction",
 names(dfc_with_ICV)<-col_names
 names(dfc_without_ICV)<-col_names
 
-dfc_with_ICV[,2:ncol(dfc_with_ICV)] <- signif(dfc_with_ICV[,2:ncol(dfc_with_ICV)],digits=3)
-dfc_without_ICV[,2:ncol(dfc_without_ICV)] <- signif(dfc_without_ICV[,2:ncol(dfc_without_ICV)],digits=3)
-
-write_xlsx(dfc_with_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Model_contrasts_with_ICV.xlsx")
-write_xlsx(dfc_without_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Model_contrasts_without_ICV.xlsx")
+#write_xlsx(dfc_with_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/globvar_Model_contrasts_with_ICV.xlsx")
+#write_xlsx(dfc_without_ICV,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/globvar_Model_contrasts_without_ICV.xlsx")
 
 
 
@@ -824,54 +771,6 @@ par(mfrow=c(1,1))
 ###################################
 
 
-#ps[[g]] = plot(PH,comparisons=TRUE,xlab="LSmean estiamte") +
-#          ggtitle(paste(glob[g])) +
-#          scale_x_continuous(limits = c(min(summary(PH)$lsmeans$lsmean), max(summary(PH)$lsmeans$lsmean)))
-
-#plot group:age interation
-par(mfrow=c(1,5))
-for (i in seq(1,length(model))){
-  y_var = paste(model_vars[[i]])
-  plot(datab$age[datab$group=="K"],datab[[y_var]][datab$group=="K"],col=group_color[1],ylab = y_var, xlab="age")
-  points(datab$age[datab$group=="SZ"],datab[[y_var]][datab$group=="SZ"],col=group_color[2])
-  points(datab$age[datab$group=="BP"],datab[[y_var]][datab$group=="BP"],col=group_color[3])
-  
-  legend("topright", legend=c(as.character(unique(datab$group))),
-         col=group_color, pch=c(1,1,1), cex=1)
-  
-  B <- fixef(model[[i]])
-  with(datab, {
-    abline(a=B["groupK"], b=B["groupK:age"], lty=1, col="green")
-    abline(a=B["groupSZ"], b=B["groupSZ:age"], lty=2, col="blue")
-    abline(a=B["groupBP"], b=B["groupBP:age"], lty=3, col="red")
-  })
-}
-
-
-modelt = lmer(total_area ~ group*sex + age + eICV_samseg + (1| site),data=datab)
-anova(modelt)
-modelt = update(modelt,~.-group:sex)
-anova(modelt)
-ls = lsmeans(modelt,pairwise~"group")
-ls = lsmeans(modelt,pairwise~"group",by="sex")
-plot(ls,comparisons=TRUE)
-
-
-
-modelt = lmer(total_area ~ group*sex + age + (1| site),data=datab)
-anova(modelt)
-modelt = update(modelt,~.-group:sex)
-anova(modelt)
-ls = lsmeans(modelt,pairwise~"group")
-ls = lsmeans(modelt,pairwise~"group",by="sex")
-
-plot(ls,comparisons=TRUE)
-
-emm2 = emmeans(modelt,specs = "group")
-plot(emm2,comparisons = TRUE)
-
-
-
 
 library(multcomp)
 library(emmeans)
@@ -892,137 +791,25 @@ pairs(emm,
 
 
 
-
-####### LSmeans estimates on the variance plot #########
-
-y_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness")
-highriskG = c("BP","SZ")
-glob = c("with_eICV", "without_eICV")
-
-pls = list()
-
-dftm = datab %>%
-  pivot_longer(cols = y_vars,
-               names_to = "NAME_measure",
-               values_to = "VALUE_measure",
-               values_drop_na = FALSE)
-dftm = as.data.frame(dftm)
-
-dftm$NORM_measure = dftm$VALUE_measure
-dftm$NORM_measure_K = NA #dftm$VALUE_measure
-dftm$NORM_measure_K_mt = NA #dftm$VALUE_measure
+model_bvol_glob = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab)
+anova(model_bvol_glob)
+summary(model_bvol_glob)
+lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
 
 
-for (g in seq(1,length(glob))){
-  
-  for (i in seq(1,length(y_vars))){
-    avg_K = mean(dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] & dftm$group  == "K"])
-    
-    if (y_vars[i] == "mean_thickness"){
-      dftm$NORM_measure_K_mt[ dftm$NAME_measure  == y_vars[i] ] = ( dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-    }
-    else{
-      dftm$NORM_measure_K[ dftm$NAME_measure  == y_vars[i] ] = ( dftm$VALUE_measure[ dftm$NAME_measure  == y_vars[i] ] - avg_K ) / avg_K
-    }
-    
-    
-    ls = lsmeans(model[[glob[g]]][[i]],pairwise~"group",by="sex",adjust="none")
-    c = ls$contrasts
-    K_emm = summary(ls)$lsmeans$lsmean[summary(ls$lsmeans)$sex == 0][2]
-    sex1_K_emm = summary(ls)$lsmeans$lsmean[summary(ls$lsmeans)$sex == 1][2]
-    
-    
-    #percent difference
-    BP_diff_P = 100*summary(c)$estimate[summary(c)$sex == 0][1] /K_emm
-    BP_diff_LCL_P = 100*confint(c)$lower.CL[confint(c)$sex == 0][1] /K_emm
-    BP_diff_UCL_P = 100*confint(c)$upper.CL[confint(c)$sex == 0][1] /K_emm
-    
-    SZ_diff_P = -100*summary(c)$estimate[summary(c)$sex == 0][3] /K_emm
-    SZ_diff_LCL_P = -100*confint(c)$lower.CL[confint(c)$sex == 0][3] /K_emm
-    SZ_diff_UCL_P = -100*confint(c)$upper.CL[confint(c)$sex == 0][3] /K_emm
-    
-    sex1_BP_diff_P = 100*summary(c)$estimate[summary(c)$sex == 1][1] /sex1_K_emm
-    sex1_BP_diff_LCL_P = 100*confint(c)$lower.CL[confint(c)$sex == 1][1] /sex1_K_emm
-    sex1_BP_diff_UCL_P = 100*confint(c)$upper.CL[confint(c)$sex == 1][1] /sex1_K_emm
-    
-    sex1_SZ_diff_P = -100*summary(c)$estimate[summary(c)$sex == 1][3] /sex1_K_emm
-    sex1_SZ_diff_LCL_P = -100*confint(c)$lower.CL[confint(c)$sex == 1][3] /sex1_K_emm
-    sex1_SZ_diff_UCL_P = -100*confint(c)$upper.CL[confint(c)$sex == 1][3] /sex1_K_emm
-    
-    #BP
-    dftm$lsmean_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_P
-    dftm$lsmean_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_P
-    
-    dftm$eb_max_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_UCL_P
-    dftm$eb_min_BP[dftm$NAME_measure  == y_vars[i]] = BP_diff_LCL_P
-    
-    dftm$eb_max_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_UCL_P
-    dftm$eb_min_BP[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_BP_diff_LCL_P
-    
-    #SZ
-    dftm$lsmean_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_P
-    dftm$lsmean_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_P
-    
-    dftm$eb_max_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_UCL_P
-    dftm$eb_min_SZ[dftm$NAME_measure  == y_vars[i]] = SZ_diff_LCL_P
-    
-    dftm$eb_max_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_UCL_P
-    dftm$eb_min_SZ[dftm$NAME_measure  == y_vars[i] & dftm$sex == 1] = sex1_SZ_diff_LCL_P
-    
-  }
-  
-  
-  for (h in seq(1,2)){
-    pls[[2*h-1]]= with(dftm[!is.na(dftm$NORM_measure_K), ],
-                       ggplot() + 
-                         aes(x = factor(NAME_measure), y = 100*NORM_measure_K, color = group) +
-                         geom_violin(position = "identity",alpha=0.3) +
-                         geom_jitter(width = 0.3, size=0.1) + 
-                         geom_hline(yintercept = 0,linetype="dashed") + 
-                         
-                         ggnewscale::new_scale_colour() +
-                         
-                         geom_point(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color=sex, group=sex), size=2) +
-                         scale_colour_manual("Contrasts per sex", values = c("red", "blue")) + 
-                         
-                         geom_errorbar(aes_string(width=0.05,group="sex",color="sex",ymin=paste("eb_min_",highriskG[h],sep=""), ymax=paste("eb_max_",highriskG[h],sep="")) ) +
-                         geom_line(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color="sex", group="sex")) +
-                         
-                         theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-                         labs(y = "Difference from control [%]", x = "brain measure") +
-                         ggtitle(paste(highriskG[h])) +
-                         
-                         annotate("text", size=2.5, x = c(1,2,3), y=21, label = c(paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[1]]],digits=3)),
-                                                                                  paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[2]]],digits=3)),
-                                                                                  paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[3]]],digits=3))) )
-    )
-    
-    pls[[2*h]]= with(dftm[!is.na(dftm$NORM_measure_K_mt), ],
-                     ggplot() + 
-                       aes(x = factor(NAME_measure), y = 100*NORM_measure_K_mt, color = group) +
-                       geom_violin(position = "identity",alpha=0.3) +
-                       geom_jitter(width = 0.3, size=0.1) + 
-                       geom_hline(yintercept = 0,linetype="dashed") + 
-                       
-                       ggnewscale::new_scale_colour() +
-                       
-                       geom_point(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color=sex, group=sex), size=2) +
-                       scale_colour_manual("Contrasts per sex", values = c("red", "blue")) + 
-                       
-                       geom_errorbar(aes_string(width=0.05,group="sex",color="sex",ymin=paste("eb_min_",highriskG[h],sep=""), ymax=paste("eb_max_",highriskG[h],sep="")) ) +
-                       geom_line(aes_string(x = "NAME_measure", y = paste("lsmean",highriskG[h],sep = "_"), color="sex", group="sex")) +
-                       
-                       #theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-                       labs(y = "Difference from control [%]", x = "brain measure") +
-                       ggtitle(paste(highriskG[h])) + 
-                       
-                       annotate("text",size=2.5, x = 1, y=7.9, label = c(paste("G:S pval =",round(GS_pvals[[glob[g]]][[y_vars[4]]],digits=3))))
-    )
-    
-  } #h = for each highrisk group in subplot
-  
-  top_title = paste("LSmeans contrasts of model",glob[g])
-  ga=grid.arrange(grobs=pls,ncols=2, top=textGrob(top_title,gp=gpar(fontsize=20)))
-  #ggsave(paste("LSmeans_contrasts_on_datapoints_",glob[g],"_alt.png",sep=""),ga,width = 10,height = 10)
-  
-} #g
+
+micv = as.numeric(mean(datab$eICV_samseg))
+licv = as.numeric(quantile(datab$eICV_samseg)[2])
+uicv = as.numeric(quantile(datab$eICV_samseg)[4])
+
+micv = as.numeric(mean(datab$TotalEulerNumber))
+licv = as.numeric(quantile(datab$TotalEulerNumber)[2])
+uicv = as.numeric(quantile(datab$TotalEulerNumber)[4])
+
+ls = lsmeans(model_bvol_glob,"group",by="TotalEulerNumber",at = list(TotalEulerNumber = c(licv,micv,uicv)),adjust="none")
+plot(ls)
+#lsmeans(model_bvol_glob,pairwise~"group",by="eICV_samseg",at = list(eICV_samseg = c(licv,micv,uicv)),adjust="none")
+#lsmeans(model_bvol_glob,pairwise~"group",adjust="none")
+
+emm = emmeans(model_bvol_glob,specs = "group",adjust="none")
+pwpp(emm)

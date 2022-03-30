@@ -18,6 +18,8 @@ library(Cairo)
 library(grDevices)
 library(ggpcp)
 library(car)
+library(writexl)
+
 
 #load data
 data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
@@ -76,21 +78,43 @@ data_sex1 = datab[c(datab$sex == 1),]
 data_sex0 = datab[c(datab$sex == 0),]
 dataf = list(data_sex0,data_sex1)
 
-model_IPvol = lm(bi_bankssts_area ~ site + TotalEulerNumber + sex + age + total_area + group, data=datab)
-anova(model_IPvol)
-model_IPvol = lm(bi_bankssts_area ~ group + sex + age + site + TotalEulerNumber + total_area, data=datab)
-anova(model_IPvol)
-lsmeans(model_IPvol,pairwise~"group",adjust="none")
 
+#sanity checks #with glob var
+model_ba_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex1)
+model_ba_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex0)
+Anova(model_ba_sex0,type="III")
+Anova(model_ba_sex1,type="III")
+lsmeans(model_ba_sex0,pairwise~"group",adjust="none")
+lsmeans(model_ba_sex1,pairwise~"group",adjust="none")
 
-#sanity checks 
-model_IPvol_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex1)
-model_IPvol_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex0)
-anova(model_IPvol_sex1)
-anova(model_IPvol_sex0)
-
-Anova(model_IPvol_sex1,type="II")
+model_IPvol_sex1 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber + BrainTotalVol, data=data_sex1)
+model_IPvol_sex0 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber + BrainTotalVol, data=data_sex0)
 Anova(model_IPvol_sex1,type="III")
+Anova(model_IPvol_sex0,type="III")
+lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
+lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
+
+
+#without
+model_ba_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber, data=data_sex1)
+model_ba_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber, data=data_sex0)
+Anova(model_ba_sex0,type="III")
+Anova(model_ba_sex1,type="III")
+lsmeans(model_ba_sex0,pairwise~"group",adjust="none")
+lsmeans(model_ba_sex1,pairwise~"group",adjust="none")
+
+model_IPvol_sex1 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex1)
+model_IPvol_sex0 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex0)
+Anova(model_IPvol_sex1,type="III")
+Anova(model_IPvol_sex0,type="III")
+lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
+lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
+
+
+model1 = lm(bi_parsopercularis_area ~ group + age + TotalEulerNumber + total_area + site, data=data_sex1)
+model0 = lm(bi_parsopercularis_area ~ group + age + TotalEulerNumber + total_area + site, data=data_sex0)
+lsmeans(model1,pairwise~"group",adjust="none")
+lsmeans(model0,pairwise~"group",adjust="none")
 
 
 ls1 = lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
@@ -101,7 +125,7 @@ confint(ls1)
 confint(ls0)
 
 
-modelm = lm(bi_insula_volume ~ group+ sex + age + site + TotalEulerNumber + BrainTotalVol, data = datab)
+modelm = lm(bi_insula_volume ~ group*sex + age + site + TotalEulerNumber + BrainTotalVol, data = datab)
 xvars = attributes(Anova(modelm,type="II"))$row.names
 Anova(modelm,type="II")$"F value"[xvars=="group"]
 xvars = attributes(Anova(modelm,type="III"))$row.names
@@ -166,7 +190,6 @@ for (j in seq(1,3)){
       BP_diff = summary(c)$estimate[1]
       BP_diff_pv = summary(c)$"p.value"[1]
       BP_diff_tratio = summary(c)$"t.ratio"[1]
-      
       BP_diff_LCL = confint(c)$lower.CL[1]
       BP_diff_UCL = confint(c)$upper.CL[1]
       
@@ -184,8 +207,8 @@ for (j in seq(1,3)){
       BP_diff_UCL_P = 100*BP_diff_UCL /K_emm
       
       SZ_diff_P = 100*SZ_diff /K_emm
-      SZ_diff_LCL_P = -100*SZ_diff_LCL /K_emm
-      SZ_diff_UCL_P = -100*SZ_diff_UCL /K_emm
+      SZ_diff_LCL_P = 100*SZ_diff_LCL /K_emm
+      SZ_diff_UCL_P = 100*SZ_diff_UCL /K_emm
       
       mm = model_ana
       
@@ -226,7 +249,7 @@ for (j in seq(1,3)){
       rwc_xlsx = list(model_yvars[k],
                   BP_diff,BP_diff_tratio,BP_diff_pv,
                   SZ_diff,SZ_diff_tratio,SZ_diff_pv,
-                  g,s-1)
+                  K_emm,g,s-1)
       
       DFc_xlsx = rbindlist(list(DFc_xlsx, rwc_xlsx))
       
@@ -271,20 +294,20 @@ DF_xlsx_glob1 = DF_xlsx[DF_xlsx$global_var_in_model == 1, ]
 #df_with_ICV[,2:ncol(df_with_ICV)] <- signif(df_with_ICV[,2:ncol(df_with_ICV)],digits=3)
 #df_without_ICV[,2:ncol(df_without_ICV)] <- signif(df_without_ICV[,2:ncol(df_without_ICV)],digits=3)
 
-write_xlsx(DF_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Parcel_ANOVA_pvals_with_glob.xlsx")
-write_xlsx(DF_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Parcel_ANOVA_pvals_without_glob.xlsx")
+write_xlsx(DF_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_with_glob.xlsx")
+write_xlsx(DF_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_without_glob.xlsx")
 
 
 names(DFc_xlsx) = c("Model_yvar",
                "Contrast_BP-K","tratio_BP-K","pval_BP-K",
                "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
-               "global_var_in_model","sex")
+               "K_LSmean","global_var_in_model","sex")
 
 DFc_xlsx_glob0 = DFc_xlsx[DFc_xlsx$global_var_in_model == 0, ]
 DFc_xlsx_glob1 = DFc_xlsx[DFc_xlsx$global_var_in_model == 1, ]
 
-write_xlsx(DFc_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Parcel_model_contrast_with_glob.xlsx")
-write_xlsx(DFc_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/Parcel_model_contrast_without_glob.xlsx")
+write_xlsx(DFc_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_with_glob.xlsx")
+write_xlsx(DFc_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_without_glob.xlsx")
 
 
 
