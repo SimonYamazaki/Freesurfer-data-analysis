@@ -6,17 +6,9 @@ library(data.table)
 library(ggplot2)
 library(ggdist)
 library(gridExtra)
-library(lmerTest)
-library(lme4)
 library(tidyr)
-library(dplyr)
-library(stringr)
-library(see)
 library(lsmeans)
 library(grid)
-library(Cairo)
-library(grDevices)
-library(ggpcp)
 library(car)
 library(writexl)
 
@@ -77,60 +69,6 @@ datab$age = as.numeric(datab$MRI_age)
 data_sex1 = datab[c(datab$sex == 1),]
 data_sex0 = datab[c(datab$sex == 0),]
 dataf = list(data_sex0,data_sex1)
-
-
-#sanity checks #with glob var
-model_ba_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex1)
-model_ba_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex0)
-Anova(model_ba_sex0,type="III")
-Anova(model_ba_sex1,type="III")
-lsmeans(model_ba_sex0,pairwise~"group",adjust="none")
-lsmeans(model_ba_sex1,pairwise~"group",adjust="none")
-
-model_IPvol_sex1 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber + BrainTotalVol, data=data_sex1)
-model_IPvol_sex0 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber + BrainTotalVol, data=data_sex0)
-Anova(model_IPvol_sex1,type="III")
-Anova(model_IPvol_sex0,type="III")
-lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
-lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
-
-
-#without
-model_ba_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber, data=data_sex1)
-model_ba_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber, data=data_sex0)
-Anova(model_ba_sex0,type="III")
-Anova(model_ba_sex1,type="III")
-lsmeans(model_ba_sex0,pairwise~"group",adjust="none")
-lsmeans(model_ba_sex1,pairwise~"group",adjust="none")
-
-model_IPvol_sex1 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex1)
-model_IPvol_sex0 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex0)
-Anova(model_IPvol_sex1,type="III")
-Anova(model_IPvol_sex0,type="III")
-lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
-lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
-
-
-model1 = lm(bi_parsopercularis_area ~ group + age + TotalEulerNumber + total_area + site, data=data_sex1)
-model0 = lm(bi_parsopercularis_area ~ group + age + TotalEulerNumber + total_area + site, data=data_sex0)
-lsmeans(model1,pairwise~"group",adjust="none")
-lsmeans(model0,pairwise~"group",adjust="none")
-
-
-ls1 = lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
-ls0 = lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
-ls1
-ls0
-confint(ls1)
-confint(ls0)
-
-
-modelm = lm(bi_insula_volume ~ group*sex + age + site + TotalEulerNumber + BrainTotalVol, data = datab)
-xvars = attributes(Anova(modelm,type="II"))$row.names
-Anova(modelm,type="II")$"F value"[xvars=="group"]
-xvars = attributes(Anova(modelm,type="III"))$row.names
-Anova(modelm,type="III")$"F value"[xvars=="group"]
-
 
 
 
@@ -325,8 +263,6 @@ DFp = as.data.frame(DFp)
 DFp$diff_group[DFp$diff_group == "BP_diff_P"] = "BP"
 DFp$diff_group[DFp$diff_group == "SZ_diff_P"] = "SZ"
 
-
-#for glob
 pivot_cols_LCL = c("BP_diff_LCL_P","SZ_diff_LCL_P")
 DF_LCL = DF %>%
   pivot_longer(cols = pivot_cols_LCL,
@@ -405,6 +341,62 @@ for (j in seq(1,length(m))){
 
 
 
+
+
+### SANITY CHECKS OF MODELS BEING RUN ####
+
+
+#with glob var
+model_ba_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex1)
+model_ba_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber + total_area, data=data_sex0)
+Anova(model_ba_sex0,type="III")
+Anova(model_ba_sex1,type="III")
+lsmeans(model_ba_sex0,pairwise~"group",adjust="none")
+lsmeans(model_ba_sex1,pairwise~"group",adjust="none")
+
+model_IPvol_sex1 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber + BrainTotalVol, data=data_sex1)
+model_IPvol_sex0 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber + BrainTotalVol, data=data_sex0)
+Anova(model_IPvol_sex1,type="III")
+Anova(model_IPvol_sex0,type="III")
+lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
+lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
+
+
+#without
+model_ba_sex1 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber, data=data_sex1)
+model_ba_sex0 = lm(bi_bankssts_area ~ group + age + site + TotalEulerNumber, data=data_sex0)
+Anova(model_ba_sex0,type="III")
+Anova(model_ba_sex1,type="III")
+lsmeans(model_ba_sex0,pairwise~"group",adjust="none")
+lsmeans(model_ba_sex1,pairwise~"group",adjust="none")
+
+model_IPvol_sex1 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex1)
+model_IPvol_sex0 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex0)
+Anova(model_IPvol_sex1,type="III")
+Anova(model_IPvol_sex0,type="III")
+lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
+lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
+
+
+model1 = lm(bi_parsopercularis_area ~ group + age + TotalEulerNumber + total_area + site, data=data_sex1)
+model0 = lm(bi_parsopercularis_area ~ group + age + TotalEulerNumber + total_area + site, data=data_sex0)
+lsmeans(model1,pairwise~"group",adjust="none")
+lsmeans(model0,pairwise~"group",adjust="none")
+
+
+ls1 = lsmeans(model_IPvol_sex1,pairwise~"group",adjust="none")
+ls0 = lsmeans(model_IPvol_sex0,pairwise~"group",adjust="none")
+ls1
+ls0
+confint(ls1)
+confint(ls0)
+
+
+modelm = lm(bi_insula_volume ~ group*sex + age + site + TotalEulerNumber + BrainTotalVol, data = datab)
+xvars = attributes(Anova(modelm,type="II"))$row.names
+Anova(modelm,type="II")$"F value"[xvars=="group"]
+xvars = attributes(Anova(modelm,type="III"))$row.names
+Anova(modelm,type="III")$"F value"[xvars=="group"]
 
 
 

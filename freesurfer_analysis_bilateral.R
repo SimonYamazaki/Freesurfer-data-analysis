@@ -6,17 +6,9 @@ library(data.table)
 library(ggplot2)
 library(ggdist)
 library(gridExtra)
-library(lmerTest)
-library(lme4)
 library(tidyr)
-library(dplyr)
-library(stringr)
-library(see)
 library(lsmeans)
 library(grid)
-library(Cairo)
-library(grDevices)
-library(ggpcp)
 library(car)
 library(writexl)
 
@@ -73,58 +65,8 @@ datab$age = as.numeric(datab$MRI_age)
 
 
 
-##### Test individual region statistics
-model_IPvol = lm(bi_inferiorparietal_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
-#model_IPvol = update(model_IPvol,~.-group:sex)
-lsmeans(model_IPvol,pairwise~"group",by="sex",adjust="none")
+###### Make inference with models
 
-
-model1 = lm(bi_superiorparietal_volume ~ group*sex + age + site + TotalEulerNumber + BrainTotalVol, data=datab)
-model1 = lm(bi_superiorparietal_volume ~ group+sex + age + site + TotalEulerNumber + BrainTotalVol, data=datab)
-Anova(model1,type="III")
-model2 = lm(bi_superiorparietal_volume ~ group*sex + age + site + TotalEulerNumber, data=datab)
-Anova(model2,type="III")
-
-
-model1 = lm(bi_medialorbitofrontal_area ~ group*sex + age + TotalEulerNumber + total_area + site, data=datab)
-model1 = lm(bi_medialorbitofrontal_area ~ group+sex + age + TotalEulerNumber + total_area + site, data=datab)
-Anova(model1,type="III")
-
-model1 = lm(bi_medialorbitofrontal_area ~ group*sex + age + TotalEulerNumber + site, data=datab)
-model1 = lm(bi_medialorbitofrontal_area ~ group+sex + age + TotalEulerNumber + site, data=datab)
-Anova(model1,type="III")
-
-model1 = lm(bi_fusiform_area ~ group*sex + age + TotalEulerNumber + site, data=datab)
-model1 = lm(bi_fusiform_area ~ group+sex + age + TotalEulerNumber + site, data=datab)
-Anova(model1,type="III")
-
-
-model1 = lm(bi_medialorbitofrontal_thickness ~ group*sex + age + TotalEulerNumber + mean_thickness + site, data=datab)
-Anova(model1,type="III")
-model1 = lm(bi_medialorbitofrontal_thickness ~ group+sex + age + TotalEulerNumber + mean_thickness + site, data=datab)
-Anova(model1,type="III")
-lsmeans(model1,pairwise~"group",adjust="none")
-
-model1 = lm(bi_medialorbitofrontal_thickness ~ group*sex + age + TotalEulerNumber + site, data=datab)
-Anova(model1,type="III")
-model1 = lm(bi_medialorbitofrontal_thickness ~ group+sex + age + TotalEulerNumber + site, data=datab)
-Anova(model1,type="III")
-lsmeans(model1,pairwise~"group",adjust="none")
-
-
-model1 = lm(bi_rostralanteriorcingulate_thickness ~ group*sex + age + site + TotalEulerNumber + mean_thickness, data=datab)
-Anova(model1,type="III")
-model2 = lm(bi_rostralanteriorcingulate_thickness ~ group + sex + age + site + TotalEulerNumber  + mean_thickness, data=datab)
-Anova(model2,type="III")
-lsmeans(model1,pairwise~"group",adjust="none")
-
-
-
-
-
-#### NEW INFERENCE 
-
-###### make inference with models
 model = list()
 GS_pvals = list()
 glob = c("Without global var","With global var")
@@ -144,14 +86,8 @@ for (j in seq(1,3)){
         f = paste(model_yvars[k],"~","+","group*sex","+","age","+","site","+","TotalEulerNumber")
         model[[glob[gg]]][[k]] = lm(f,data=datab)
         
-        #model_ana = model[[glob[gg]]][[k]]
         xvars = attributes(Anova(model[[glob[gg]]][[k]],type = "III"))$row.names
         pv_group_sex = Anova(model[[glob[gg]]][[k]],type = "III")$"Pr(>F)"[xvars=="group:sex"]
-        
-        #if (Anova(model_ana,type = "III")$"Pr(>F)"[xvars=="group:sex"] > 0.05){
-        #  model_ana = update(model_ana,~.-group:sex)
-        #} 
-        #model[[glob[gg]]][[k]] = model_ana
         
       }
       else {
@@ -169,14 +105,9 @@ for (j in seq(1,3)){
           f2 = paste(model_yvars[k],"~","+","group*sex","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
         model[[glob[gg]]][[k]] = lm(f2,data=datab)
-        #model_ana = model[[glob[gg]]][[k]]
         xvars = attributes(Anova(model[[glob[gg]]][[k]],type = "III"))$row.names
         pv_group_sex = Anova(model[[glob[gg]]][[k]],type = "III")$"Pr(>F)"[xvars=="group:sex"]
         
-        #if (Anova(model_ana,type = "III")$"Pr(>F)"[xvars=="group:sex"] > 0.05){
-        #  model_ana = update(model_ana,~.-group:sex)
-        #} 
-        #model[[glob[gg]]][[k]] = model_ana
       }
     
 
@@ -472,5 +403,54 @@ ggsave(paste("LSmean_difference_thickness_gender_combined",".png",sep=""),ps,wid
 
 
 
+
+
+##### Test individual region statistics, FOR SANITY CHECKS ##### 
+
+
+
+model_IPvol = lm(bi_inferiorparietal_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
+#model_IPvol = update(model_IPvol,~.-group:sex)
+lsmeans(model_IPvol,pairwise~"group",by="sex",adjust="none")
+
+
+model1 = lm(bi_superiorparietal_volume ~ group*sex + age + site + TotalEulerNumber + BrainTotalVol, data=datab)
+model1 = lm(bi_superiorparietal_volume ~ group+sex + age + site + TotalEulerNumber + BrainTotalVol, data=datab)
+Anova(model1,type="III")
+model2 = lm(bi_superiorparietal_volume ~ group*sex + age + site + TotalEulerNumber, data=datab)
+Anova(model2,type="III")
+
+
+model1 = lm(bi_medialorbitofrontal_area ~ group*sex + age + TotalEulerNumber + total_area + site, data=datab)
+model1 = lm(bi_medialorbitofrontal_area ~ group+sex + age + TotalEulerNumber + total_area + site, data=datab)
+Anova(model1,type="III")
+
+model1 = lm(bi_medialorbitofrontal_area ~ group*sex + age + TotalEulerNumber + site, data=datab)
+model1 = lm(bi_medialorbitofrontal_area ~ group+sex + age + TotalEulerNumber + site, data=datab)
+Anova(model1,type="III")
+
+model1 = lm(bi_fusiform_area ~ group*sex + age + TotalEulerNumber + site, data=datab)
+model1 = lm(bi_fusiform_area ~ group+sex + age + TotalEulerNumber + site, data=datab)
+Anova(model1,type="III")
+
+
+model1 = lm(bi_medialorbitofrontal_thickness ~ group*sex + age + TotalEulerNumber + mean_thickness + site, data=datab)
+Anova(model1,type="III")
+model1 = lm(bi_medialorbitofrontal_thickness ~ group+sex + age + TotalEulerNumber + mean_thickness + site, data=datab)
+Anova(model1,type="III")
+lsmeans(model1,pairwise~"group",adjust="none")
+
+model1 = lm(bi_medialorbitofrontal_thickness ~ group*sex + age + TotalEulerNumber + site, data=datab)
+Anova(model1,type="III")
+model1 = lm(bi_medialorbitofrontal_thickness ~ group+sex + age + TotalEulerNumber + site, data=datab)
+Anova(model1,type="III")
+lsmeans(model1,pairwise~"group",adjust="none")
+
+
+model1 = lm(bi_rostralanteriorcingulate_thickness ~ group*sex + age + site + TotalEulerNumber + mean_thickness, data=datab)
+Anova(model1,type="III")
+model2 = lm(bi_rostralanteriorcingulate_thickness ~ group + sex + age + site + TotalEulerNumber  + mean_thickness, data=datab)
+Anova(model2,type="III")
+lsmeans(model1,pairwise~"group",adjust="none")
 
 
