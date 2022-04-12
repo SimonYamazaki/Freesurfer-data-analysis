@@ -1,5 +1,4 @@
-
-setwd("/mnt/projects/VIA11/FREESURFER/Stats/Data")
+#author: Simon Yamazaki Jensen
 
 #load packages
 library(data.table)
@@ -9,43 +8,95 @@ library(gridExtra)
 library(tidyr)
 library(lsmeans)
 library(grid)
-library(car)
+library(ggnewscale)
 library(writexl)
+library(car)
+library(NCmisc)
 
+
+#This script is intended for computation of statistics on bilateral regional brain 
+#measures in multiple groups and comparing to a control group for each sex independtly.
+#The script generates:
+
+
+#####
+# - ANOVA tables with models that include a group/sex interaction 
+#   an extra row of a model without the interaction is included if it turned out insignificant
+#   saved in an excel sheet with a covariate and an excel sheet without
+
+#save paths:
+GS_ANOVA_with_glob = 
+GS_ANOVA_without_glob = 
+
+#####
+# - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
+#   saved in an excel sheet with a covariate and an excel sheet without
+
+#save paths:
+contrast_with_glob = 
+contrast_without_glob = 
+
+
+#####
+# - Plots LSmeans based contrasts which compares BP and SZ to control for thickness only
+#   one plot which includes model contrasts from model with global covarate and without
+#   no split into sex, however contrasts are based on LSmean sex
+
+#prefix on violin plot
+LSmeans_prefix = 
+
+
+#save folder for plots:
+save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral"
+
+#data path
+data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv"
 
 #load data
-data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
+data_csv <- read.table(data_path, header = TRUE, sep = ",", dec = ".")
 
+
+#inspect the head of data and summary
+head(data_csv)
+summary(data_csv)
 
 #filter the data with include variable
+# - extract rows with 1 in Include_FS_studies coloumn
 data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
 
+# - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
 data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_excluded == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_excluded),]
 
-#tell r which variables are factors
+#rename to a shorter name for convenience
 datab = data_csv_filtered
 
 
-setwd("/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral")
+
 
 
 ######################################
 #    run models on each region
 ######################################
 
-# extract model yvars 
+#### extract model yvars and make the bilateral coloumns ####
 
-#make the bilateral coloumns
+#compute statistics on these measures
 m = c("area","thickness","volume")
 col_names = names(datab)
+
+#find names of all the regions based on coloumn names that include "lh_" 
 regions = col_names[grepl("^lh_", col_names)]
 regions <- unique(unlist(strsplit(regions,"_")))
+
+#remove some specific coloumns
 col2rm = c(m,"WhiteSurfArea","lh","MeanThickness")
 regions = regions[!(regions %in% col2rm)] 
 col_names_list = list()
 
+#loop that extract all the relevant coloumns based on the regions variable
+#and computes new bilateral coloumns, based on the mean value of the hemispheres
 for (j in seq(1,length(m))){
   col_names_list[[m[j]]] = list()
   
@@ -58,6 +109,50 @@ for (j in seq(1,length(m))){
   }
 }
 
+#make new variables with shorter and contained names
+# - tell r which variables are factors
+datab$sex = as.factor(datab$Sex_child)
+datab$group = as.factor(datab$HighRiskStatus)
+datab$site = as.factor(datab$MR_Site)
+datab$diag = as.factor(datab$Axis.1_diag_v11)
+datab$age = as.numeric(datab$MRI_age)
+
+
+######################################
+#    run models on each region
+######################################
+
+#### extract model yvars and make the bilateral coloumns ####
+
+#compute statistics on these measures
+m = c("area","thickness","volume")
+col_names = names(datab)
+
+#find names of all the regions based on coloumn names that include "lh_" 
+regions = col_names[grepl("^lh_", col_names)]
+regions <- unique(unlist(strsplit(regions,"_")))
+
+#remove some specific coloumns
+col2rm = c(m,"WhiteSurfArea","lh","MeanThickness")
+regions = regions[!(regions %in% col2rm)] 
+col_names_list = list()
+
+#loop that extract all the relevant coloumns based on the regions variable
+#and computes new bilateral coloumns, based on the mean value of the hemispheres
+for (j in seq(1,length(m))){
+  col_names_list[[m[j]]] = list()
+  
+  for (i in seq(1,length(regions))){
+    mm = paste(regions[i],m[j],sep = "_")
+    bmm = paste("bi_",mm,sep = "")
+    col_names_list[[m[j]]] = c(col_names_list[[m[j]]],bmm)
+    cols = col_names[grepl(paste("",mm,sep = "_"), col_names)]
+    datab[bmm] = rowMeans(datab[cols])
+  }
+}
+
+#make new variables with shorter and contained names
+# - tell r which variables are factors
 datab$sex = as.factor(datab$Sex_child)
 datab$group = as.factor(datab$HighRiskStatus)
 datab$site = as.factor(datab$MR_Site)
@@ -71,7 +166,6 @@ data_sex0 = datab[c(datab$sex == 0),]
 dataf = list(data_sex0,data_sex1)
 
 
-
 ###### make inference with models
 models = list()
 models_glob = list()
@@ -80,6 +174,8 @@ DF = data.frame()
 DF_xlsx = data.frame()
 DFc_xlsx = data.frame()
 
+
+#loop that 
 for (j in seq(1,3)){
   print(m[j])
   model_yvars = unlist(col_names_list[[m[j]]] )
@@ -251,7 +347,7 @@ write_xlsx(DFc_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/par
 
 
 
-#change data frame for plotting
+#reformat data frame for plotting
 
 pivot_cols = c("BP_diff_P","SZ_diff_P")
 DFp = DF %>%
