@@ -20,35 +20,35 @@ library(NCmisc)
 
 
 #####
-# - ANOVA tables with models that include a group/sex interaction 
-#   an extra row of a model without the interaction is included if it turned out insignificant
+# - ANOVA tables with models for each sex
 #   saved in an excel sheet with a covariate and an excel sheet without
 
 #save paths:
-GS_ANOVA_with_glob = 
-GS_ANOVA_without_glob = 
+ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_with_glob.xlsx"
+ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_without_glob.xlsx"
+
 
 #####
 # - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
 #   saved in an excel sheet with a covariate and an excel sheet without
 
 #save paths:
-contrast_with_glob = 
-contrast_without_glob = 
+contrast_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_with_glob.xlsx"
+contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_without_glob.xlsx"
 
 
 #####
-# - Plots LSmeans based contrasts which compares BP and SZ to control for thickness only
-#   one plot which includes model contrasts from model with global covarate and without
-#   no split into sex, however contrasts are based on LSmean sex
-
-#prefix on violin plot
-LSmeans_prefix = 
-
+# - Plots LSmeans based contrasts which compares BP and SZ to control
+#   one plot which for each measure
 
 #save folder for plots:
 save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral"
 
+#prefix on the contrast plots
+LSmeans_prefix = "LSmean_difference_"
+
+
+######
 #data path
 data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv"
 
@@ -174,6 +174,7 @@ DF = data.frame()
 DF_xlsx = data.frame()
 DFc_xlsx = data.frame()
 
+glob = c("without_global_var","with_global_var")
 
 #loop that 
 for (j in seq(1,3)){
@@ -181,15 +182,15 @@ for (j in seq(1,3)){
   model_yvars = unlist(col_names_list[[m[j]]] )
   for (k in seq(1,length(model_yvars))){
     for (s in seq(1,2)){
-      for (g in seq(0,1)){
+      for (g in seq(1,2)){
       
-      if (g == 0){
+      if (glob[g] == "without_global_var"){
         #no global measure model
         glob_var = NA
         f = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber")
-        models[[m[j]]][[model_yvars[k]]] = lm(f,data=dataf[[s]])
+        models[[glob[g]]][[m[j]]][[model_yvars[k]]] = lm(f,data=dataf[[s]])
         
-        model_ana = models[[m[j]]][[model_yvars[k]]]
+        model_ana = models[[glob[g]]][[m[j]]][[model_yvars[k]]]
         xvars = attributes(Anova(model_ana,type = "III"))$row.names
         
       }
@@ -207,8 +208,8 @@ for (j in seq(1,3)){
           glob_var = "BrainTotalVol"
           f2 = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
-        models_glob[[m[j]]][[model_yvars[k]]] = lm(f2,data=dataf[[s]])
-        model_ana = models_glob[[m[j]]][[model_yvars[k]]]
+        models[[glob[g]]][[m[j]]][[model_yvars[k]]] = lm(f2,data=dataf[[s]])
+        model_ana = models[[glob[g]]][[m[j]]][[model_yvars[k]]]
         xvars = attributes(Anova(model_ana,type = "III"))$row.names
       }
       
@@ -226,7 +227,6 @@ for (j in seq(1,3)){
       BP_diff_tratio = summary(c)$"t.ratio"[1]
       BP_diff_LCL = confint(c)$lower.CL[1]
       BP_diff_UCL = confint(c)$upper.CL[1]
-      
       
       SZ_diff = -summary(c)$estimate[3]
       SZ_diff_pv = summary(c)$"p.value"[3]
@@ -256,7 +256,7 @@ for (j in seq(1,3)){
       site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
       EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
       
-      if (g == 0){
+      if (glob[g] == "without_global_var"){
         #no global measure model
         glob_var_F = NA
         glob_var_pv = NA
@@ -325,11 +325,9 @@ names(DF_xlsx)<-c("Model_yvar","Group_Fval","Group_pval",
 DF_xlsx_glob0 = DF_xlsx[DF_xlsx$global_var_in_model == 0, ]
 DF_xlsx_glob1 = DF_xlsx[DF_xlsx$global_var_in_model == 1, ]
 
-#df_with_ICV[,2:ncol(df_with_ICV)] <- signif(df_with_ICV[,2:ncol(df_with_ICV)],digits=3)
-#df_without_ICV[,2:ncol(df_without_ICV)] <- signif(df_without_ICV[,2:ncol(df_without_ICV)],digits=3)
+write_xlsx(DF_xlsx_glob1,ANOVA_with_glob)
+write_xlsx(DF_xlsx_glob0,ANOVA_without_glob)
 
-write_xlsx(DF_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_with_glob.xlsx")
-write_xlsx(DF_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_without_glob.xlsx")
 
 
 names(DFc_xlsx) = c("Model_yvar",
@@ -340,8 +338,8 @@ names(DFc_xlsx) = c("Model_yvar",
 DFc_xlsx_glob0 = DFc_xlsx[DFc_xlsx$global_var_in_model == 0, ]
 DFc_xlsx_glob1 = DFc_xlsx[DFc_xlsx$global_var_in_model == 1, ]
 
-write_xlsx(DFc_xlsx_glob1,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_with_glob.xlsx")
-write_xlsx(DFc_xlsx_glob0,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_without_glob.xlsx")
+write_xlsx(DFc_xlsx_glob1,contrast_with_glob)
+write_xlsx(DFc_xlsx_glob0,contrast_without_glob)
 
 
 
@@ -389,14 +387,12 @@ DFp$SZ_diff_sig[DFp$SZ_diff_pv < 0.05 & grepl(paste("_thickness",sep = ""), DFp$
 
 ###### mean difference plot
 groups = c("BP","SZ")
-#P = c("_P","")
-Plab = c("Difference from control [%]","Orignial units")
 m = c("area","thickness","volume")
 glob = c("Models WITHOUT global var","Models WITH global var")
 sx = c("female","male")
 
 sp=list()
-pp = 1
+
 
 for (j in seq(1,length(m))){
   
@@ -411,7 +407,7 @@ for (j in seq(1,length(m))){
       dfss = dfs[c(dfs$sex == s-1),]
       
       sp[[2*(g)-2+s]]=ggplot(dfss, aes_string(group="diff_group",color="diff_group", x="model_yvar", y="diff_value_P")) +
-        labs(x="region",y=Plab[pp]) +
+        labs(x="region",y="Difference from control [%]") +
         geom_line() + 
         ggtitle(paste(glob[g],":",sx[s])) + 
         geom_hline(yintercept = 0) + 
@@ -431,7 +427,7 @@ for (j in seq(1,length(m))){
   }
   top_title = paste("Bilateral LSmean difference from control: ",m[j])
   ps=grid.arrange(grobs=sp, top=textGrob(top_title,gp=gpar(fontsize=20)))
-  ggsave(paste("LSmean_difference_",m[j],".png",sep=""),ps,width = 15,height = 10)
+  ggsave(paste(LSmeans_prefix,m[j],".png",sep=""),ps,width = 15,height = 10)
   
 }
 

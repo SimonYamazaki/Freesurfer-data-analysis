@@ -38,17 +38,16 @@ contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parce
 
 
 #####
-# - Plots LSmeans based contrasts which compares BP and SZ to control 
-#   one plot which includes model contrasts from model with global covarate and without
-#   no split into sex, however contrasts are based on LSmean sex
-
-#prefix on violin plot
-LSmeans_prefix = "LSmean_difference_thickness_gender_combined"
-
+# - Plots LSmeans based contrasts which compares BP and SZ to control
 
 #save folder for plots:
 save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures"
 
+#prefix for the plot
+LSmeans_prefix = "LSmean_difference_thickness_gender_combined"
+
+
+######
 #data path
 data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv"
 
