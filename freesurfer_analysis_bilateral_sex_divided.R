@@ -168,7 +168,6 @@ dataf = list(data_sex0,data_sex1)
 
 ###### make inference with models
 models = list()
-models_glob = list()
 
 DF = data.frame()
 DF_xlsx = data.frame()
@@ -274,7 +273,7 @@ for (j in seq(1,3)){
                      age_F, age_pv, site_F, site_pv, 
                      EulerNumber_F, EulerNumber_pv, 
                      glob_var_F, glob_var_pv, glob_var,
-                     g,s-1)
+                     g-1,s-1)
       
       DF_xlsx = rbindlist(list(DF_xlsx, rw_xlsx))
       
@@ -283,7 +282,7 @@ for (j in seq(1,3)){
       rwc_xlsx = list(model_yvars[k],
                   BP_diff,BP_diff_tratio,BP_diff_pv,
                   SZ_diff,SZ_diff_tratio,SZ_diff_pv,
-                  K_emm,g,s-1)
+                  K_emm,g-1,s-1)
       
       DFc_xlsx = rbindlist(list(DFc_xlsx, rwc_xlsx))
       
@@ -297,7 +296,7 @@ for (j in seq(1,3)){
                 SZ_diff_LCL, SZ_diff_UCL, 
                 BP_diff_P, BP_diff_LCL_P, BP_diff_UCL_P, 
                 SZ_diff_P, SZ_diff_LCL_P, SZ_diff_UCL_P, 
-                g,(s-1))
+                g-1,(s-1))
       
       DF = rbindlist(list(DF, rw))
       
@@ -419,7 +418,7 @@ for (j in seq(1,length(m))){
         geom_point(shape=8, aes_string(group="diff_group",x="model_yvar", y="SZ_diff_sig"),color="#009E73") +
         theme(axis.text.x = element_text(color = "#993333", size = 8, angle = 90)) +
         ylim(-17, 17) +
-        annotate("text", x = 6, y = 13,label = "* = Significant contrast",family = "", fontface = 3, size=3)+
+        annotate("text", x = 8, y = 15,label = "* = Significant uncorrected contrast",family = "", fontface = 3, size=3)+
         {if (m[j]=="thickness") ylim(-6, 6)}
       {if (sx[s]=="male") theme(axis.text.x = element_text(color = "blue", size = 8, angle = 90))}
     } #end for s
@@ -461,6 +460,7 @@ Anova(model_ba_sex0,type="III")
 Anova(model_ba_sex1,type="III")
 lsmeans(model_ba_sex0,pairwise~"group",adjust="none")
 lsmeans(model_ba_sex1,pairwise~"group",adjust="none")
+
 
 model_IPvol_sex1 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex1)
 model_IPvol_sex0 = lm(bi_frontalpole_volume ~ group + age + site + TotalEulerNumber, data=data_sex0)

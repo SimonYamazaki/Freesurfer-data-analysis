@@ -41,7 +41,7 @@ contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parce
 # - Plots LSmeans based contrasts which compares BP and SZ to control
 
 #save folder for plots:
-save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures"
+save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral"
 
 #prefix for the plot
 LSmeans_prefix = "LSmean_difference_thickness_gender_combined"
@@ -439,6 +439,8 @@ for (g in seq(1,2)){
     theme(axis.text.x = element_text(color = "black", size = 8, angle = 90)) + 
     ylim(-10, 10) +
     {if (m[j]=="thickness") ylim(-5, 5)}
+    annotate("text", x = 8, y = 4,label = "* = Significant uncorrected contrast",family = "", fontface = 3, size=3)
+    
   #coord_flip()
   
 }
