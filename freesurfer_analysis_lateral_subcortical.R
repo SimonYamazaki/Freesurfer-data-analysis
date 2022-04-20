@@ -30,6 +30,10 @@ library(NCmisc)
 GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_GS_ANOVA_pvals_with_glob.xlsx"
 GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_GS_ANOVA_pvals_without_glob.xlsx"
 
+#GS_ANOVA_with_glob = "/mnt/projects/VIA11_MMN/subParcel_GS_ANOVA_pvals_with_glob.xlsx"
+#GS_ANOVA_without_glob = "/mnt/projects/VIA11_MMN/subParcel_GS_ANOVA_pvals_without_glob.xlsx"
+
+
 #####
 # - ANOVA tables with models that are defined on sex separated data
 #   one row for each model on each sex
@@ -38,6 +42,9 @@ GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parce
 #save paths
 ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_ANOVA_pvals_with_glob.xlsx"
 ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_ANOVA_pvals_without_glob.xlsx"
+
+#ANOVA_with_glob = "/mnt/projects/VIA11_MMN/subParcel_ANOVA_pvals_with_glob.xlsx"
+#ANOVA_without_glob = "/mnt/projects/VIA11_MMN/subParcel_ANOVA_pvals_without_glob.xlsx"
 
 
 #####
@@ -49,11 +56,19 @@ ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/
 contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_with_glob.xlsx"
 contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_without_glob.xlsx"
 
+#contrast_with_glob ="/mnt/projects/VIA11_MMN/subParcel_contrast_with_glob.xlsx"
+#contrast_without_glob = "/mnt/projects/VIA11_MMN/subParcel_contrast_without_glob.xlsx"
+
+#save paths LSmean sex / combined sex:
+contrast_with_glob_combined_sex ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_with_glob_combined_sex.xlsx"
+contrast_without_glob_combined_sex = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_without_glob_combined_sex.xlsx"
 
 
 ######
 #data path
 data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Allthevolumeswithz.csv"
+#data_path = "/mnt/projects/VIA11_MMN/Allthevolumeswithz.csv"
+#data_csv <- read.table(data_path, header = TRUE, sep = ";", dec = ".")
 
 #load data
 data_csv <- read.table(data_path, header = TRUE, sep = ",", dec = ".")
@@ -360,7 +375,127 @@ write_xlsx(DFc_glob0,contrast_without_glob)
 
 
 
+
+
+###### make inference with models
+# generate model_contrast tables for LSmean sex
+
+#initialize dataframes and the global variable indicator
+DFc = data.frame()
+glob = c("without_global_var","with_global_var")
+
+#loop that generates the model contrast dataframe
+for (k in seq(1,length(model_yvars))){
+    for (g in seq(1,2)){
+      
+      if (glob[g] == "without_global_var"){
+        #no global measure model
+        f = paste(model_yvars[k],"~","group + sex","+","age","+","site","+","TotalEulerNumber")
+      }
+      else {
+        glob_var = global_var
+        #define model formulation for models with the global variable 
+        f = paste(model_yvars[k],"~","+","group + sex","+","age","+","site","+","TotalEulerNumber","+",glob_var)
+      }
+      
+      #run model and define p-value for interaction
+      model = lm(f,data=datab)
+      xvars = attributes(Anova(model,type = "III"))$row.names
+      
+      #use the above defined model_ana 
+      ls = lsmeans(model,pairwise~"group",adjust="none")
+      c = ls$contrasts
+      BP_emm = summary(ls)$lsmeans$lsmean[1]
+      K_emm = summary(ls)$lsmeans$lsmean[2]
+      SZ_emm = summary(ls)$lsmeans$lsmean[3]
+      
+      #raw contrasts
+      BP_diff = summary(c)$estimate[1]
+      BP_diff_pv = summary(c)$"p.value"[1]
+      BP_diff_tratio = summary(c)$"t.ratio"[1]
+      BP_diff_LCL = confint(c)$lower.CL[1]
+      BP_diff_UCL = confint(c)$upper.CL[1]
+      
+      SZ_diff = -summary(c)$estimate[3] #note the negative signs because the contrast is displayed as K - SZ
+      SZ_diff_pv = summary(c)$"p.value"[3]
+      SZ_diff_tratio = summary(c)$"t.ratio"[3]
+      SZ_diff_LCL = -confint(c)$lower.CL[3]
+      SZ_diff_UCL = -confint(c)$upper.CL[3]
+      
+      #rows to be added to the model contrast dataframe
+      rwc = list(model_yvars[k],BP_emm,K_emm,SZ_emm,
+                 BP_diff,BP_diff_tratio,BP_diff_pv,
+                 BP_diff_LCL, BP_diff_UCL,
+                 SZ_diff,SZ_diff_tratio,SZ_diff_pv,
+                 SZ_diff_LCL, SZ_diff_UCL,
+                 g-1)
+      
+      DFc = rbindlist(list(DFc, rwc))
+      
+      
+    } #g
+} #k
+
+
+#define coloumn names
+names(DFc) = c("Model_yvar","BP_LSmean","K_LSmean","SZ_LSmean",
+               "Contrast_BP-K","tratio_BP-K","pval_BP-K",
+               "LCL_Contrast_BP-K", "UCL_Contrast_BP-K",
+               "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
+               "LCL_Contrast_SZ-K", "UCL_Contrast_SZ-K",
+               "global_var_in_model")
+
+
+DFc_glob0 = DFc[DFc$global_var_in_model == 0, ]
+DFc_glob1 = DFc[DFc$global_var_in_model == 1, ]
+
+write_xlsx(DFc_glob1,contrast_with_glob_combined_sex)
+write_xlsx(DFc_glob0,contrast_without_glob_combined_sex)
+
+
+
+#### Multivariate anova ####
+
+## On the 15 volume measures
+y_vars = model_yvars
+y_vars_idx = (names(datab) %in% y_vars == TRUE)
+my_vars <- data.matrix(datab[,c(y_vars_idx)])
+
+#without global covariate
+mmodel = manova(my_vars ~ group*sex + age + site + TotalEulerNumber, data = datab)
+Anova(mmodel,type="III")
+mmodel = manova(my_vars ~ group + sex + age + site + TotalEulerNumber, data = datab)
+Anova(mmodel,type="III")
+
+lsmeans(mmodel,pairwise~"group",adjust="none")
+
+summary.aov(mmodel)
+
+
+#with global covariate
+mmodel = manova(my_vars ~ group*sex + age + site + TotalEulerNumber + TotalVolume_mm_volume, data = datab)
+Anova(mmodel,type="III")
+mmodel = manova(my_vars ~ group + sex + age + site + TotalEulerNumber + TotalVolume_mm_volume, data = datab)
+Anova(mmodel,type="III")
+
+lsmeans(mmodel,pairwise~"group",adjust="none")
+
+
+
+
 ## Sanity checks some of the models run and displayed in tables 
+model_hpi = lm(Hypothalamus_whole_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
+Anova(model_hpi,type="III")
+
+model_hp = lm(Hypothalamus_whole_volume ~ group + sex + age + TotalEulerNumber + site, data=datab)
+Anova(model_hp,type="III")
+
+lsmeans(model_hpi,pairwise~"group",adjust="none")
+lsmeans(model_hp,pairwise~"group",adjust="none")
+
+
+
+
 
 model_hp = lm(Hypothalamus_whole_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
 Anova(model_hp,type="III")
@@ -382,4 +517,5 @@ model1 = lm(Hypothalamus_whole_volume ~ group + age + site + TotalEulerNumber, d
 Anova(model0,type="III")
 Anova(model1,type="III")
 
+lsmeans(model00,pairwise~"group",adjust="none")
 lsmeans(model0,pairwise~"group",adjust="none")

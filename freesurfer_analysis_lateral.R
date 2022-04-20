@@ -16,24 +16,33 @@ library(NCmisc)
 
 
 #This script is intended for computation of statistics on lateral regional brain 
-#measures in multiple groups and comparing to a control group. The script generates:
+#volumes in multiple groups and comparing to a control group on cortical structures
+#The script generates:
 
 
 #####
-# - ANOVA tables with models that include a group/sex interaction 
-#   an extra row of a model without the interaction is included if it turned out insignificant
+# - GS_ANOVA tables with models that include a group/sex interaction 
+#   an extra row of a model without the interaction is included if the iteraction 
+#   turned out insignificant
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
 GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_GS_ANOVA_pvals_with_glob.xlsx"
 GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_GS_ANOVA_pvals_without_glob.xlsx"
 
+#####
+# - ANOVA tables with models that are defined on sex separated data
+#   one row for each model on each sex
+#   saved in an excel sheet with a global covariate and an excel sheet without
+
+#save paths
 ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_ANOVA_pvals_with_glob.xlsx"
 ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_ANOVA_pvals_without_glob.xlsx"
 
 
 #####
-# - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
+# - An excel sheet with model relevant LSmean contrasts for each of the models
+#   in the sex separated ANOVA tables
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
@@ -121,19 +130,21 @@ dataf = list(data_sex0,data_sex1)
 
 
 ###### Make inference with models
+# generate ANOVA table with GS interaction 
 
 #initialize some variables for referencing
 glob = c("Without global var","With global var")
 DF = data.frame()
 
 #loop that 
-for (i in seq(1,2)){
-  print(h[i])
 for (j in seq(1,3)){
   print(m[j])
   model_yvars = col_names_list[[paste(h[i],m[j],sep = "_")]] 
   
   for (k in seq(1,length(model_yvars))){
+    for (i in seq(1,2)){
+      print(h[i])
+      
     for (g in seq(1,2)){
       
       if (glob[g] == "Without global var"){
@@ -239,12 +250,12 @@ for (j in seq(1,3)){
         DF = rbindlist(list(DF, rw))
         
       } #for m
-      
     } #g
+    } #i
     
   } #k
 } #j
-} #i
+
 
 names(DF)<-c("model_yvar","hemisphere","group_Fval","group_pval",
              "sex_Fval","sex_pval","age_Fval","age_pval",
@@ -265,18 +276,20 @@ write_xlsx(DF_xlsx_glob0,GS_ANOVA_without_glob)
 
 
 ###### make inference with models
+
 DF_xlsx = data.frame()
 DFc = data.frame()
 glob = c("without_global_var","with_global_var")
 
-for (i in seq(1,2)){
-  print(h[i])
+
 for (j in seq(1,3)){
   print(m[j])
   model_yvars = col_names_list[[paste(h[i],m[j],sep = "_")]] 
   #model_yvars = unlist(col_names_list[[m[j]]] )
   for (k in seq(1,length(model_yvars))){
     for (s in seq(1,2)){
+    for (i in seq(1,2)){
+      print(h[i])
     for (g in seq(1,2)){
       
       if (glob[g] == "without_global_var"){
@@ -301,7 +314,7 @@ for (j in seq(1,3)){
           f2 = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
         #run model and define p-value for interaction
-        model = lm(f2,data=datab)
+        model = lm(f2,data=dataf[[s]])
         xvars = attributes(Anova(model,type = "III"))$row.names
       }
       
@@ -309,7 +322,9 @@ for (j in seq(1,3)){
       #use the above defined model_ana 
       ls = lsmeans(model,pairwise~"group",adjust="none")
       c = ls$contrasts
+      BP_emm = summary(ls)$lsmeans$lsmean[1]
       K_emm = summary(ls)$lsmeans$lsmean[2]
+      SZ_emm = summary(ls)$lsmeans$lsmean[3]
       
       #raw contrasts
       BP_diff = summary(c)$estimate[1]
@@ -326,12 +341,12 @@ for (j in seq(1,3)){
       SZ_diff_UCL = -confint(c)$upper.CL[3]
       
       #for contrast xlsx
-      rwc = list(model_yvars[k],m[j],
+      rwc = list(model_yvars[k],m[j],BP_emm,K_emm,SZ_emm,
                       BP_diff,BP_diff_tratio,BP_diff_pv,
                       BP_diff_LCL, BP_diff_UCL,
                       SZ_diff,SZ_diff_tratio,SZ_diff_pv,
                       SZ_diff_LCL, SZ_diff_UCL,
-                      K_emm,g-1,s-1,h[i])
+                      g-1,s-1,h[i])
       
       DFc = rbindlist(list(DFc, rwc))
       
@@ -371,19 +386,18 @@ for (j in seq(1,3)){
       
       
     } #g
+    }#i
     } #s 
   } #k
 } #j
-}#i
 
 
-names(DFc) = c("Model_yvar","measure",
+names(DFc) = c("Model_yvar","measure","BP_LSmean","K_LSmean","SZ_LSmean",
                     "Contrast_BP-K","tratio_BP-K","pval_BP-K",
                     "LCL_Contrast_BP-K", "UCL_Contrast_BP-K",
                     "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
                     "LCL_Contrast_SZ-K", "UCL_Contrast_SZ-K",
-                    "K_LSmean","global_var_in_model","sex","hemisphere")
-
+                    "global_var_in_model","sex","hemisphere")
 
 names(DF_xlsx)<-c("Model_yvar","hemisphere","Group_Fval","Group_pval",
                   "Age_Fval","Age_pval","Site_Fval","Site_pval",
@@ -453,14 +467,16 @@ DFp$diff_UCL_P = 100*DFp$diff_UCL / DFp$K_LSmean
 #define relevant variables for naming
 groups = c("BP","SZ")
 m = c("area","thickness","volume")
-glob = c("Models WITHOUT global var","Models WITH global var")
+glob_names = c("Models WITHOUT global var","Models WITH global var")
+glob = c("without_global_var","with_global_var")
+
 sx = c("female","male")
 
 sp=list()
 
-for (j in seq(1,3)){
+for (j in seq(1,3)){ 
 for (g in seq(1,2)){
-for (i in seq(1,2)){  
+for (i in seq(1,2)){  #hemisphere 
 for (s in seq(1,2)){  
   
   dfs = DFp[DFp$measure == m[j] & DFp$global_var_in_model == (g-1) & DFp$hemisphere == h[i] & DFp$sex == s-1,]
@@ -486,12 +502,29 @@ for (s in seq(1,2)){
   #coord_flip()
 } 
 }
-} #g
 
-top_title = paste("Lateral LSmean difference from control:",m[j],glob[g])
+
+top_title = paste("Lateral LSmean difference from control:",m[j],glob_names[g])
 ps=grid.arrange(grobs=sp, top=textGrob(top_title,gp=gpar(fontsize=20)))
-#ggsave(paste(LSmeans_prefix,m[j],".png",sep=""),ps,width = 15,height = 10)
+ggsave(paste(LSmeans_prefix,m[j],glob[g],".png",sep=""),ps,width = 15,height = 10)
 
+} #g
 } #j
+
+
+
+#sanity checks 
+model2 = lm(rh_inferiorparietal_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
+#model_IPvol = update(model_IPvol,~.-group:sex)
+Anova(model2,type="III")
+
+model0 = lm(lh_inferiorparietal_volume ~ group + age + TotalEulerNumber + site, data=data_sex0)
+model1 = lm(lh_inferiorparietal_volume ~ group + age + TotalEulerNumber + site, data=data_sex1)
+Anova(model0,type="III")
+Anova(model1,type="III")
+
+lsmeans(model0,pairwise~"group",adjust="none")
+
+
 
 

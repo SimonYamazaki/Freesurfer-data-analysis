@@ -68,9 +68,6 @@ data_csv <- read.table(data_path, header = TRUE, sep = ",", dec = ".")
 
 
 
-#load data
-data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")
-
 #inspect the head of data and summary
 head(data_csv)
 summary(data_csv)
@@ -708,3 +705,47 @@ for (g in seq(1,length(glob))){
 
 
 
+#### Multivariate ANOVA #####
+
+y_vars = c("CortexVol", "total_area", "mean_thickness")#, "eICV_samseg")
+y_vars = c("CortexVol", "total_area")
+
+y_vars_idx = (names(datab) %in% y_vars == TRUE)
+my_vars <- data.matrix(datab[,c(y_vars_idx)])
+
+mmodel = manova(my_vars ~ group*sex + age + site + TotalEulerNumber, data = datab)
+Anova(mmodel,type="III")
+mmodel = manova(my_vars ~ group + sex + age + site + TotalEulerNumber, data = datab)
+Anova(mmodel,type="III")
+summary.aov(mmodel)
+
+PH = lsmeans(mmodel,pairwise~"group", adjust="none")
+plot(PH,comparison=TRUE,xlab="Multivariate lsmean")
+
+memm = emmeans(mmodel,specs="group", adjust="none")
+pwpp(memm,adjust="none")
+
+
+
+#### Effect size ####
+
+
+model_eff = lm(BrainTotalVol ~ group*sex + age + site + TotalEulerNumber, data=datab)
+Anova(model_eff,type = "III")
+
+
+library(heplots)
+etasq(model_eff,anova=T)
+
+#use cohens d on the pairwise contrast tests 
+library(effsize)
+cohen.d(model_eff,"group")
+
+library(effectsize)
+eta_squared(car::Anova(model_eff, type = 3))
+
+library(lsr)
+etaSquared(model_eff, type = 3, anova = T)
+
+
+#EFFECT SIZES ON THE CONTRAST T-TESTS
