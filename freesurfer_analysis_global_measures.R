@@ -24,16 +24,19 @@ library(NCmisc)
 #   saved in an excel sheet with a covariate and an excel sheet without
 
 #save paths:
-GS_ANOVA_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_with_ICV.xlsx"
-GS_ANOVA_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_without_ICV.xlsx"
+GS_ANOVA_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_with_glob.xlsx"
+GS_ANOVA_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_without_glob.xlsx"
+
+ANOVA_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_ANOVA_pvals_with_glob.xlsx"
+ANOVA_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_ANOVA_pvals_without_glob.xlsx"
 
 #####
 # - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
 #   saved in an excel sheet with a covariate and an excel sheet without
 
 #save paths:
-contrast_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_Model_contrasts_with_ICV.xlsx"
-contrast_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_Model_contrasts_without_ICV.xlsx"
+contrast_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_S_Model_contrasts_with_glob.xlsx"
+contrast_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_S_Model_contrasts_without_glob.xlsx"
 
 #####
 # - Variance plots
@@ -140,7 +143,7 @@ p_var[[1]]=with(dft,
                   stat_summary(fun = mean, geom = "point",size=2,pch=21,colour="black") +
                   scale_y_continuous(labels = function(x) format(x, scientific = TRUE)) + 
                   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-                  labs(y = paste("Region"), x = "brain region") +
+                  labs(y = paste("Original units"), x = "brain region") +
                   ggtitle("Global measures")
 )
 grid.arrange(p_var[[1]])
@@ -363,6 +366,7 @@ dataf = list(data_sex0, data_sex1, datab)
 models = list()
 
 DFc = data.frame()
+DF_xlsx = data.frame()
 
 
 # loop that runs the model on each global variable, each sex with and without ICV
@@ -377,9 +381,9 @@ for (k in seq(1,length(model_vars))){
     df_sex = dataf[[ss]]
     
     #only continue with both sex data when the global variable is mean_thickness 
-    if (model_vars[k] == "mean_thickness" & sex[ss] != "both"){
-      next
-    }
+    #if (model_vars[k] == "mean_thickness" & sex[ss] != "both"){
+    #  next
+    #}
     if (model_vars[k] != "mean_thickness" & sex[ss] == "both"){
       next
     }
@@ -389,7 +393,7 @@ for (k in seq(1,length(model_vars))){
       
       if (glob[gg] == "without_eICV"){ #run models without ICV
         #define the models 
-        if (model_vars[k] == "mean_thickness"){ #define a specific model for the mean_thickness variable
+        if (sex[ss] == "both"){ #define a specific model for the case of both sex
           f = paste(model_vars[k],"~","group","+","sex","+","age","+","site","+","TotalEulerNumber")
         }
         else {
@@ -406,7 +410,7 @@ for (k in seq(1,length(model_vars))){
       
       else { #run models with ICV
         #define models
-        if (model_vars[k] == "mean_thickness"){
+        if (sex[ss] == "both"){
           f2 = paste(model_vars[k],"~","group","+","sex","+","age","+","site","+","TotalEulerNumber","+","eICV_samseg")
         }
         else {
@@ -462,9 +466,54 @@ for (k in seq(1,length(model_vars))){
       
       DFc = rbindlist(list(DFc, rwc_xlsx))
       
+      
+      if (sex[ss] != "both"){
+        mm=model_ana
+        
+        #ANOVA sex separated
+        group_F = Anova(mm,type="III")$"F value"[xvars=="group"]
+        age_F = Anova(mm,type = "III")$"F value"[xvars=="age"]
+        site_F = Anova(mm,type = "III")$"F value"[xvars=="site"]
+        EulerNumber_F = Anova(mm,type = "III")$"F value"[xvars=="TotalEulerNumber"]
+        
+        group_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="group"]
+        age_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="age"]
+        site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
+        EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
+        
+        if (glob[g] == "without_global_var"){
+          #no global measure model
+          glob_var_F = NA
+          glob_var_pv = NA
+        }       
+        else{
+          #global measure model
+          glob_var_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
+          glob_var_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
+          
+        } 
+        
+        
+        #rows for ANOVA xlsx table
+        rw_xlsx = list(model_vars[k], group_F, group_pv, 
+                       age_F, age_pv, site_F, site_pv, 
+                       EulerNumber_F, EulerNumber_pv, 
+                       glob_var_F, glob_var_pv, "eICV_samseg",
+                       gg-1,ss-1)
+        
+        DF_xlsx = rbindlist(list(DF_xlsx, rw_xlsx))
+        
+      } #fi both sex
+      
     } #g 
   } #s
 } #k
+
+names(DF_xlsx)<-c("Model_yvar","Group_Fval","Group_pval",
+                  "Age_Fval","Age_pval","Site_Fval","Site_pval",
+                  "EulerNumber_Fval","Eulernumber_pval",
+                  "global_var_F","global_var_pv","global_var_name",
+                  "global_var_in_model","sex")
 
 #same excel saving procedure as above 
 col_names = c("Model_yvar", "K_LSmean",
@@ -478,6 +527,13 @@ DF_xlsx_glob1 = DFc[DFc$ICV_in_model == 1, ]
 
 write_xlsx(DF_xlsx_glob1,contrast_with_cov)
 write_xlsx(DF_xlsx_glob0,contrast_without_cov)
+
+
+DF_xlsx_glob0 = DF_xlsx[DF_xlsx$ICV_in_model == 0, ]
+DF_xlsx_glob1 = DF_xlsx[DF_xlsx$ICV_in_model == 1, ]
+
+write_xlsx(DF_xlsx_glob1,ANOVA_with_cov)
+write_xlsx(DF_xlsx_glob0,ANOVA_without_cov)
 
 
 
@@ -705,10 +761,12 @@ for (g in seq(1,length(glob))){
 
 
 
+
 #### Multivariate ANOVA #####
 
 y_vars = c("CortexVol", "total_area", "mean_thickness")#, "eICV_samseg")
 y_vars = c("CortexVol", "total_area")
+y_vars = c("CortexVol", "total_area", "mean_thickness","BrainTotalVol")#, "eICV_samseg")
 
 y_vars_idx = (names(datab) %in% y_vars == TRUE)
 my_vars <- data.matrix(datab[,c(y_vars_idx)])
@@ -717,13 +775,25 @@ mmodel = manova(my_vars ~ group*sex + age + site + TotalEulerNumber, data = data
 Anova(mmodel,type="III")
 mmodel = manova(my_vars ~ group + sex + age + site + TotalEulerNumber, data = datab)
 Anova(mmodel,type="III")
-summary.aov(mmodel)
+#summary.aov(mmodel) #THIS DISPLAYS TYPE 1 SS 
+#summary(mmodel, test="Pillai") #SAME FOR THIS
 
 PH = lsmeans(mmodel,pairwise~"group", adjust="none")
 plot(PH,comparison=TRUE,xlab="Multivariate lsmean")
 
 memm = emmeans(mmodel,specs="group", adjust="none")
 pwpp(memm,adjust="none")
+
+
+model1 = lm(CortexVol ~ group+sex + age + site + TotalEulerNumber, data = datab)
+Anova(model1,type="III")
+model2 = lm(total_area ~ group*sex + age + site + TotalEulerNumber, data = datab)
+Anova(model2,type="III")
+model3 = lm(mean_thickness ~ group+sex + age + site + TotalEulerNumber, data = datab)
+Anova(model3,type="III")
+model4 = lm(BrainTotalVol ~ group+sex + age + site + TotalEulerNumber, data = datab)
+Anova(model4,type="III")
+
 
 
 
@@ -733,13 +803,17 @@ pwpp(memm,adjust="none")
 model_eff = lm(BrainTotalVol ~ group*sex + age + site + TotalEulerNumber, data=datab)
 Anova(model_eff,type = "III")
 
+model_eff = lm(BrainTotalVol ~ group + age + site + TotalEulerNumber, data=dataf[[1]])
 
+emm_eff = emmeans(model_eff,specs="group")
+
+#cohens d
+eff_size(emm_eff, sigma=sigma(model_eff), edf=df.residual(model_eff))
+
+
+#3 ways of computing eta squared
 library(heplots)
 etasq(model_eff,anova=T)
-
-#use cohens d on the pairwise contrast tests 
-library(effsize)
-cohen.d(model_eff,"group")
 
 library(effectsize)
 eta_squared(car::Anova(model_eff, type = 3))
@@ -748,4 +822,7 @@ library(lsr)
 etaSquared(model_eff, type = 3, anova = T)
 
 
-#EFFECT SIZES ON THE CONTRAST T-TESTS
+#general way of computing cohens d for means 
+library(effsize)
+#cohen.d(model_eff,"group")
+

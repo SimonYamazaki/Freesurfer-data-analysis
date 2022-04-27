@@ -24,8 +24,8 @@ library(NCmisc)
 #   saved in an excel sheet with a covariate and an excel sheet without
 
 #save paths:
-ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_with_glob.xlsx"
-ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_ANOVA_pvals_without_glob.xlsx"
+ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_ANOVA_pvals_with_glob.xlsx"
+ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_ANOVA_pvals_without_glob.xlsx"
 
 
 #####
@@ -33,8 +33,8 @@ ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/
 #   saved in an excel sheet with a covariate and an excel sheet without
 
 #save paths:
-contrast_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_with_glob.xlsx"
-contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_model_contrast_without_glob.xlsx"
+contrast_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_model_contrast_with_glob.xlsx"
+contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_model_contrast_without_glob.xlsx"
 
 
 #####
@@ -163,7 +163,7 @@ datab$age = as.numeric(datab$MRI_age)
 #get a separate data frame for each sex
 data_sex1 = datab[c(datab$sex == 1),]
 data_sex0 = datab[c(datab$sex == 0),]
-dataf = list(data_sex0,data_sex1)
+dataf = list(data_sex0,data_sex1,datab)
 
 
 ###### make inference with models
@@ -174,44 +174,49 @@ DF_xlsx = data.frame()
 DFc_xlsx = data.frame()
 
 glob = c("without_global_var","with_global_var")
+sx = c("female","male","both")
+
 
 #loop that 
 for (j in seq(1,3)){
   print(m[j])
   model_yvars = unlist(col_names_list[[m[j]]] )
   for (k in seq(1,length(model_yvars))){
-    for (s in seq(1,2)){
+    for (s in seq(1,3)){
       for (g in seq(1,2)){
       
       if (glob[g] == "without_global_var"){
         #no global measure model
         glob_var = NA
         f = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber")
-        models[[glob[g]]][[m[j]]][[model_yvars[k]]] = lm(f,data=dataf[[s]])
-        
-        model_ana = models[[glob[g]]][[m[j]]][[model_yvars[k]]]
-        xvars = attributes(Anova(model_ana,type = "III"))$row.names
         
       }
       else {
         #global measure model
         if (m[j] == "area"){
           glob_var = "total_area"
-          f2 = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
+          f = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
         else if (m[j] == "thickness"){
           glob_var = "mean_thickness"
-          f2 = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
+          f = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
         else if (m[j] == "volume"){
           glob_var = "BrainTotalVol"
-          f2 = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
+          f = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
-        models[[glob[g]]][[m[j]]][[model_yvars[k]]] = lm(f2,data=dataf[[s]])
-        model_ana = models[[glob[g]]][[m[j]]][[model_yvars[k]]]
-        xvars = attributes(Anova(model_ana,type = "III"))$row.names
       }
       
+      if (m[j] != "thickness" && sx[s] == "both"){
+        next
+      }
+      else if (m[j] == "thickness" && sx[s] == "both"){
+        f = paste(f,"+sex")
+      }
+        
+      models[[glob[g]]][[m[j]]][[model_yvars[k]]] = lm(f,data=dataf[[s]])
+      model_ana = models[[glob[g]]][[m[j]]][[model_yvars[k]]]
+      xvars = attributes(Anova(model_ana,type = "III"))$row.names
       
       #use the above defined model_ana 
       

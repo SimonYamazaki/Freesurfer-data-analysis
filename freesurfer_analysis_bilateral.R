@@ -24,8 +24,8 @@ library(NCmisc)
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
-GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_GS_ANOVA_pvals_with_glob.xlsx"
-GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_GS_ANOVA_pvals_without_glob.xlsx"
+GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_GS_ANOVA_pvals_with_glob.xlsx"
+GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_GS_ANOVA_pvals_without_glob.xlsx"
 
 
 #####
@@ -33,8 +33,8 @@ GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parce
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
-contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_thickness_model_contrast_with_glob.xlsx"
-contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/Parcel_thickness_model_contrast_without_glob.xlsx"
+#contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_thickness_model_contrast_with_glob.xlsx"
+#contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_thickness_model_contrast_without_glob.xlsx"
 
 
 #####
@@ -367,8 +367,8 @@ names(DF_thickness_xlsx) <- c("Model_yvar",
 DF_xlsx_glob0 = DF_thickness_xlsx[DF_thickness_xlsx$global_var_in_model == 0, ]
 DF_xlsx_glob1 = DF_thickness_xlsx[DF_thickness_xlsx$global_var_in_model == 1, ]
 
-write_xlsx(DF_xlsx_glob1,contrast_with_glob)
-write_xlsx(DF_xlsx_glob0,contrast_without_glob)
+#write_xlsx(DF_xlsx_glob1,contrast_with_glob)
+#write_xlsx(DF_xlsx_glob0,contrast_without_glob)
 
 
 

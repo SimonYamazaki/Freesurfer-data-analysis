@@ -27,8 +27,8 @@ library(NCmisc)
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
-GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_GS_ANOVA_pvals_with_glob.xlsx"
-GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_GS_ANOVA_pvals_without_glob.xlsx"
+GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_GS_ANOVA_pvals_with_glob.xlsx"
+GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_GS_ANOVA_pvals_without_glob.xlsx"
 
 #GS_ANOVA_with_glob = "/mnt/projects/VIA11_MMN/subParcel_GS_ANOVA_pvals_with_glob.xlsx"
 #GS_ANOVA_without_glob = "/mnt/projects/VIA11_MMN/subParcel_GS_ANOVA_pvals_without_glob.xlsx"
@@ -40,8 +40,8 @@ GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parce
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths
-ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_ANOVA_pvals_with_glob.xlsx"
-ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_ANOVA_pvals_without_glob.xlsx"
+ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_ANOVA_pvals_with_glob.xlsx"
+ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_ANOVA_pvals_without_glob.xlsx"
 
 #ANOVA_with_glob = "/mnt/projects/VIA11_MMN/subParcel_ANOVA_pvals_with_glob.xlsx"
 #ANOVA_without_glob = "/mnt/projects/VIA11_MMN/subParcel_ANOVA_pvals_without_glob.xlsx"
@@ -53,15 +53,15 @@ ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
-contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_with_glob.xlsx"
-contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_without_glob.xlsx"
+contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_model_contrast_with_glob.xlsx"
+contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_model_contrast_without_glob.xlsx"
 
 #contrast_with_glob ="/mnt/projects/VIA11_MMN/subParcel_contrast_with_glob.xlsx"
 #contrast_without_glob = "/mnt/projects/VIA11_MMN/subParcel_contrast_without_glob.xlsx"
 
 #save paths LSmean sex / combined sex:
-contrast_with_glob_combined_sex ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_with_glob_combined_sex.xlsx"
-contrast_without_glob_combined_sex = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/subParcel_model_contrast_without_glob_combined_sex.xlsx"
+contrast_with_glob_combined_sex ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_model_contrast_with_glob_combined_sex.xlsx"
+contrast_without_glob_combined_sex = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/sub_lateral_Parcel_model_contrast_without_glob_combined_sex.xlsx"
 
 
 ######
@@ -469,7 +469,6 @@ Anova(mmodel,type="III")
 
 lsmeans(mmodel,pairwise~"group",adjust="none")
 
-summary.aov(mmodel)
 
 
 #with global covariate
@@ -495,13 +494,12 @@ lsmeans(model_hp,pairwise~"group",adjust="none")
 
 
 
-
-
 model_hp = lm(Hypothalamus_whole_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
 Anova(model_hp,type="III")
 
-model_hpg = lm(Hypothalamus_whole_volume ~ group*sex + age + TotalEulerNumber + site + TotalVolume_mm_volume, data=datab)
+model_hpg = lm(Hypothalamus_whole_volume ~ group+sex + age + TotalEulerNumber + site + TotalVolume_mm_volume, data=datab)
 Anova(model_hpg,type="III")
+
 
 
 model0 = lm(Hypothalamus_whole_volume ~ group + age + site + TotalEulerNumber + TotalVolume_mm_volume, data=data_sex0)

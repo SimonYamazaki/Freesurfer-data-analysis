@@ -27,8 +27,8 @@ library(NCmisc)
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
-GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_GS_ANOVA_pvals_with_glob.xlsx"
-GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_GS_ANOVA_pvals_without_glob.xlsx"
+GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_GS_ANOVA_pvals_with_glob.xlsx"
+GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_GS_ANOVA_pvals_without_glob.xlsx"
 
 #####
 # - ANOVA tables with models that are defined on sex separated data
@@ -36,8 +36,8 @@ GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parce
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths
-ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_ANOVA_pvals_with_glob.xlsx"
-ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_ANOVA_pvals_without_glob.xlsx"
+ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_S_ANOVA_pvals_with_glob.xlsx"
+ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_S_ANOVA_pvals_without_glob.xlsx"
 
 
 #####
@@ -46,8 +46,8 @@ ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/
 #   saved in an excel sheet with a global covariate and an excel sheet without
 
 #save paths:
-contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_model_contrast_with_glob.xlsx"
-contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/Parcel_model_contrast_without_glob.xlsx"
+contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_with_glob.xlsx"
+contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_without_glob.xlsx"
 
 
 #####
