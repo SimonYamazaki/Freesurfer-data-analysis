@@ -194,7 +194,7 @@ ps=grid.arrange(grobs=p_var)
 #investigate what kind of models to run 
 model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site + eICV_samseg, data=datab)
 model_bvol_glob = update(model_bvol_glob,~.-group:sex)
-anova(model_bvol_glob)
+#anova(model_bvol_glob)
 Anova(model_bvol_glob,type="II")
 Anova(model_bvol_glob,type="III")
 drop1(model_bvol_glob, test="F")
@@ -576,8 +576,8 @@ for (i in seq(1,length(model_vars))){
       
       min_emm[[plot_idx]] = min(summary(emm[[s]])$emmean)
       max_emm[[plot_idx]] = max(summary(emm[[s]])$emmean)
-      } #end g
-    } #end s
+      } #end s
+    } #end g
     
     # plot LSmeans
     for (g in seq(1,length(glob))){
@@ -811,18 +811,69 @@ emm_eff = emmeans(model_eff,specs="group")
 eff_size(emm_eff, sigma=sigma(model_eff), edf=df.residual(model_eff))
 
 
-#3 ways of computing eta squared
-library(heplots)
-etasq(model_eff,anova=T)
-
-library(effectsize)
-eta_squared(car::Anova(model_eff, type = 3))
-
 library(lsr)
 etaSquared(model_eff, type = 3, anova = T)
 
+xvars = attributes(etaSquared(model_eff, type = 3, anova = T))$dimnames[[1]]
+yvars = attributes(etaSquared(model_eff, type = 3, anova = T))$dimnames[[2]]
+
+etaSquared(model_eff, type = 3, anova = T)[xvars=="group",yvars="eta.sq.part"]
+
+
+
+model_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness")
+glob = c("with_eICV", "without_eICV")
+sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
+
+
+DF = data.frame()
+
+all_col_names = c("group","sex","age","site","TotalEulerNumber","eICV_samseg","group:sex")
+
+for (k in seq(1,length(model_vars))){
+  for (g in seq(1,length(glob))){
+    for (s in seq(1,length(sex))){
+      
+      if (sex[s] == "both"){
+        model_eff = model[[glob[g]]][[k]]
+      }
+      else {
+        model_eff = models[[sex[s]]][[glob[g]]][[model_vars[k]]]
+      }
+      
+      xvars = attributes(etaSquared(model_eff, type = 3, anova = T))$dimnames[[1]]
+      yvars = attributes(etaSquared(model_eff, type = 3, anova = T))$dimnames[[2]]
+      
+      eta_vals = as.numeric(etaSquared(model_eff, type = 3, anova = T)[,yvars="eta.sq.part"])
+      
+      var_idx = all_col_names %in% xvars
+      
+      row = rep(NA,length(all_col_names))
+      row[var_idx] = eta_vals
+        
+      nrow(DF)
+      #rows for effect size xlsx table
+      DF[nrow(DF) + 1,] = row
+      
+      #emm_eff = emmeans(model_eff,specs="group")
+      #eff_size(emm_eff, sigma=sigma(model_eff), edf=df.residual(model_eff))
+      
+      
+    } #end s
+  } #end g
+} #end i
+
+
+
+#3 ways of computing eta squared
+#library(heplots)
+#etasq(model_eff,anova=T) #THIS ONE USES TYPE 1 !!!
+
+#library(effectsize)
+#eta_squared(car::Anova(model_eff, type = 3))
+
 
 #general way of computing cohens d for means 
-library(effsize)
+#library(effsize)
 #cohen.d(model_eff,"group")
 
