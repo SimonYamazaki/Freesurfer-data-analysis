@@ -2,11 +2,16 @@
 
 ## Cortical brain regions 
 
-```freesurfer_analysis.R ``` is an archive script with many different ways of running models and ways to do model diagnostics.
+If nothing else is specified the models are run with group, sex and site as factors.
+If nothing else is specified the models are run with age and eulernumber as covariates.
+All scripts run separate models with and without a global covariate, e.g. ICV. 
+
+
+```freesurfer_analysis.R``` is an archive script with many different ways of running models and ways to do model diagnostics.
  
-```freesurfer_analysis_bilateral.R ``` is a script to run models with sex as factor on bilateral brain regions. 
+```freesurfer_analysis_bilateral.R``` is a script to run models with sex as factor on bilateral brain regions. 
   
-```freesurfer_analysis_bilateral_sex_divided.R ``` is a script to run models separately on each sex for bilateral brain regions. 
+```freesurfer_analysis_bilateral_sex_divided.R``` is a script to run models separately on each sex for bilateral brain regions. 
 
 ```freesurfer_analysis_global_behavioural_analysis.R``` is a script to run models on global measures with behavioural measures as covariates. Also includes interactions between groups and behavioural measures. The script also runs models on behavioural measures to find groups differences. 
 
