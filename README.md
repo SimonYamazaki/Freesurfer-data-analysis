@@ -1,11 +1,11 @@
 # Freesurfer-data-analysis
 
-## Cortical brain regions 
-
 If nothing else is specified the models are run with group, sex and site as factors.
 If nothing else is specified the models are run with age and eulernumber as covariates.
 All scripts run separate models with and without a global covariate, e.g. ICV. 
 
+
+## Cortical brain regions 
 
 ```freesurfer_analysis.R``` is an archive script with many different ways of running models and ways to do model diagnostics.
  
