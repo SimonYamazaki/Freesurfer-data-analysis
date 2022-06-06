@@ -1,5 +1,4 @@
 
-
 #author: Simon Yamazaki Jensen
 
 #load packages
@@ -27,7 +26,7 @@ save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/b
 
 
 #data path
-data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv"
+data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220509.csv"
 
 #load data
 data_csv <- read.table(data_path, header = TRUE, sep = ",", dec = ".")
@@ -43,19 +42,22 @@ summary(data_csv)
 data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
 
-# - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
-data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_excluded == 1),]
-data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_excluded),]
+
+# - extract rows with 1 in Include_FS_studies_euler_outliers_sibpairs_out
+data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_sibpairs_out == 1),]
+data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_sibpairs_out),]
 
 
 #make new variables with shorter and contained names
 # - tell r which variables are factors
 datab = data_csv_filtered
 datab$sex = as.factor(datab$Sex_child)
-datab$group = as.factor(datab$HighRiskStatus)
-datab$site = as.factor(datab$MR_Site)
-datab$diag = as.factor(datab$Axis.1_diag_v11)
-datab$age = as.numeric(datab$MRI_age)
+datab$site = as.factor(datab$MRI_site_v11)
+datab$diag = as.factor(datab$ksads_any_diag_excl_elim_lft_v11)
+datab$age = as.numeric(datab$MRI_age_v11)
+
+#what groups should be used
+datab$group = as.factor(datab$HighRiskStatus_v11)
 
 
 #add a string encoding of sex for later convenience 
@@ -73,231 +75,11 @@ datab$sexs[datab$sexs == 1] = "male"
 
 #specify dependent variable (global variable) column names, i.e. left hand side of statistical models
 model_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
-behav_vars = c("CBCL_ext","CBCL_int","CBCL_totsc","CGAS")
-
-
-model = list()
-
-DF = data.frame()
-
-#loop that defines models 
-for (i in seq(1,length(model_vars))){
-  if (model_vars[i] == "eICV_samseg"){    #only run models without_eICV for the model on eICV_samseg
-    glob = c("without_eICV")
-  }
-  else{
-    glob = c("without_eICV","with_eICV") #run both for all other variables
-  }
-  print(model_vars[i])
-  
-  for (g in seq(1,length(glob))){
-      
-      if (glob[g] == "with_eICV"){
-        f = paste(model_vars[i],"~","+","group*sex","+","age","+","site","+","TotalEulerNumber","+","eICV_samseg") #model with ICV
-        #f = paste(model_vars[i],"~","+","age","+","site","+","TotalEulerNumber","+","eICV_samseg") #model with ICV
-      }
-      else{
-        f = paste(model_vars[i],"~","+","group*sex","+","age","+","site","+","TotalEulerNumber") #model without ICV
-        #f = paste(model_vars[i],"~","+","age","+","site","+","TotalEulerNumber") #model without ICV
-      }
-      
-      for (b in seq(1,length(behav_vars))){
-        print(behav_vars[b])
-        
-        beh = behav_vars[b]
-        ff = paste(f,"+",beh,"*group")
-        #ff = paste(f,"+",beh,"*sex")
-        
-        
-        #run the actual model
-        model_behav = lm(ff,data=datab)
-        
-        xvars = attributes(Anova(model_behav,type = "III"))$row.names
-        
-        GS_F = Anova(model_behav,type = "III")$"F value"[xvars=="group:sex"]
-        GS_pv = Anova(model_behav,type = "III")$"Pr(>F)"[xvars=="group:sex"]
-
-        GB_F = Anova(model_behav,type = "III")$"F value"[xvars==paste("group:",beh,sep="")]
-        GB_pv = Anova(model_behav,type = "III")$"Pr(>F)"[xvars==paste("group:",beh,sep="")]
-
-        # GS_F = Anova(model_behav,type = "III")$"F value"[xvars==paste(beh,":sex",sep="")]
-        # GS_pv = Anova(model_behav,type = "III")$"Pr(>F)"[xvars==paste(beh,":sex",sep="")]
-
-        
-        #if the group/sex interaction is insignificant
-        if (Anova(model_behav,type = "III")$"Pr(>F)"[xvars=="group:sex"] > 0.05){
-          #indicate the significance of the group/sex interation
-          sign_GS = 0
-
-          model_gs = model_behav
-
-          model_behav = update(model_behav,~.-group:sex)
-
-          models = list(model_gs, model_behav)
-
-        }
-        else{    #if the group/sex interaction is significant
-          #indicate the significance of the group/sex interation
-          sign_GS = 1
-          models = list(model_behav)
-        }
-        
-        #sign_GS = 2
-        #models = list(model_behav)
-        
-        xvars = attributes(Anova(model_behav,type = "III"))$row.names
-        
-        #group/behav interaction
-        if (Anova(model_behav,type = "III")$"Pr(>F)"[xvars==paste("group:",beh,sep="")] > 0.05){
-        #if (Anova(model_behav,type = "III")$"Pr(>F)"[xvars==paste(beh,":sex",sep="")] > 0.05){
-            
-          sign_GB = 0
-
-          #model_gb = model_behav
-          model_behav = update(model_behav, formula=drop.terms(model_behav$terms, grep( paste("group:",beh,sep=""), attr( model_behav$terms, "term.labels") ), keep.response=TRUE) )
-          #model_behav = update(model_behav, formula=drop.terms(model_behav$terms, grep( paste(beh,":sex",sep=""), attr( model_behav$terms, "term.labels") ), keep.response=TRUE) )
-          
-          models = list.append(models,model_behav)
-        }
-        else{    #if the group/sex interaction is significant 
-          sign_GB = 1
-
-        }
-        xvars = attributes(Anova(model_behav,type = "III"))$row.names
-        
-      # loop that makes rows in the ANOVA table excel 
-      # makes two rows if the group/sex interaction is insignificant 
-      # one row with the interaction included and one row with out
-      
-      for (m in seq(1,length(models))){
-        mm = models[[m]]
-        xvars = attributes(Anova(mm,type = "III"))$row.names
-
-        #extract relevant statistics for each variable in the model 
-        behav_F = Anova(mm,type = "III")$"F value"[xvars==beh]
-        #group_F = Anova(mm,type = "III")$"F value"[xvars=="group"]
-        sex_F = Anova(mm,type = "III")$"F value"[xvars=="sex"]
-        age_F = Anova(mm,type = "III")$"F value"[xvars=="age"]
-        site_F = Anova(mm,type = "III")$"F value"[xvars=="site"]
-        EulerNumber_F = Anova(mm,type = "III")$"F value"[xvars=="TotalEulerNumber"]
-        
-        behav_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars==beh]
-        #group_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="group"]
-        sex_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="sex"]
-        age_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="age"]
-        site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
-        EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
-        
-        #if the model includes ICV, then also define the anova statistics of ICV
-        if (glob[g] == "with_eICV"){
-          ICV_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
-          ICV_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
-        }
-        else{ #else, dont define them if the model is without ICV
-          ICV_F = NA
-          ICV_pv = NA
-        }   
-        
-        subs = length(model_behav$residuals)
-        
-        #GB_F = NA
-        #GB_pv = NA
-        #group_F = NA
-        #group_pv = NA
-        
-        #the first index in m is always the model with a group/sex and group/behav interaction
-        if (m==1){
-          rw = list(model_vars[i], beh,
-                    group_F, group_pv, sex_F, sex_pv,
-                    age_F, age_pv, site_F, site_pv, 
-                    EulerNumber_F, EulerNumber_pv, 
-                    ICV_F, ICV_pv, behav_F, behav_pv, 
-                    GB_F, GB_pv, GS_F, GS_pv,
-                    sign_GB,sign_GS,1,1,g-1,
-                    subs)
-        }
-        else if (m==2){ #if m is 2 then the model is does not include group/sex interaction
-          GB_F = Anova(mm,type = "III")$"F value"[xvars==paste("group:",beh,sep="")]
-          GB_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars==paste("group:",beh,sep="")]
-          
-          rw = list(model_vars[i], beh,
-                    group_F, group_pv, sex_F, sex_pv, 
-                    age_F, age_pv, site_F, site_pv, 
-                    EulerNumber_F, EulerNumber_pv, 
-                    ICV_F, ICV_pv, behav_F, behav_pv, 
-                    GB_F, GB_pv, GS_F, GS_pv,#NA, NA, 
-                    sign_GB,sign_GS,1,0,g-1,
-                    subs)
-        }
-        else if (m==3){ #if m is 3 then the model is does not include group/sex and group/behav interaction
-          rw = list(model_vars[i], beh,
-                    group_F, group_pv, sex_F, sex_pv, 
-                    age_F, age_pv, site_F, site_pv, 
-                    EulerNumber_F, EulerNumber_pv, 
-                    ICV_F, ICV_pv, behav_F, behav_pv, 
-                    NA, NA, NA,NA,
-                    sign_GB,sign_GS,0,0,g-1,
-                    subs)
-        }
-       
-        #append the row to the dataframe 
-        DF = rbindlist(list(DF, rw))
-
-      } # for m 
-        
-        png(file=paste(save_folder_plot,model_vars[i],beh,"model_diagnostics.png",sep = "_"))
-        model_diag = model_behav
-        mixed_res = rstudent(model_diag)
-        par(mar=c(1,1,1,1))
-        par(mfrow=c(1,3))
-        qqnorm(mixed_res,main = NULL)
-        qqline(mixed_res,main = NULL)
-        title("qq-plot of residuals")
-        plot(mixed_res ~ fitted(model_diag),xlab="Fitted",ylab="Standardized residuals")
-        title("std residuals vs fitted values")
-        boxplot(mixed_res ~ datab$group[!is.na(datab[[beh]])])
-        title("residual variance in groups")
-        par(mfrow=c(1,1))
-        dev.off()
-
-    } # b
-  } #g
-} #end i
-
-
-#define the coloum names of the dataframe which is converted to an excel 
-col_names = c("Model_yvar", "behav_var",
-              "Group_Fval","Group_pval","Sex_Fval","Sex_pval",
-              "Age_Fval","Age_pval","Site_Fval","Site_pval",
-              "EulerNumber_Fval","Eulernumber_pval",
-              "ICV_Fval","ICV_pval","behav_Fval","behav_pval",
-              "group_behav_Fval","group_behav_pval","Group_sex_Fval","Group_sex_pval",
-              "Significant_GB_interaction","Significant_GS_interaction","GB_in_model","GS_in_model","ICV_in_model",
-              "n_subjects")
-
-# col_names = c("Model_yvar", "behav_var",
-#               "Group_Fval","Group_pval","Sex_Fval","Sex_pval",
-#               "Age_Fval","Age_pval","Site_Fval","Site_pval",
-#               "EulerNumber_Fval","Eulernumber_pval",
-#               "ICV_Fval","ICV_pval","behav_Fval","behav_pval",
-#               "group_behav_Fval","group_behav_pval","behav_sex_Fval","behav_sex_pval",
-#               "Significant_GB_interaction","Significant_GS_interaction","GB_in_model","GS_in_model","ICV_in_model",
-#               "n_subjects")
-
-names(DF)<-col_names
-
-
-DF_xlsx_glob0 = DF[DF$ICV_in_model == 0, ]
-DF_xlsx_glob1 = DF[DF$ICV_in_model == 1, ]
-
-#write_xlsx(DF_xlsx_glob1,paste(save_folder,"globvar_GS_GB_ANOVA_pvals_with_glob.xlsx",sep=""))
-#write_xlsx(DF_xlsx_glob0,paste(save_folder,"globvar_GS_GB_ANOVA_pvals_without_glob.xlsx",sep=""))
-
-
+behav_vars = c("CBCL_ext_cg_v11","CBCL_int_cg_v11","CBCL_totsc_cg_v11","CGASx_v11")
 
 
 #### models run with behav as response variable 
-  
+
 model_vars = behav_vars
 glob = c("without_eICV","with_eICV")
 
@@ -427,8 +209,8 @@ names(DF)<-col_names
 DF_xlsx_glob0 = DF[DF$ICV_in_model == 0, ]
 DF_xlsx_glob1 = DF[DF$ICV_in_model == 1, ]
 
-write_xlsx(DF_xlsx_glob1,paste(save_folder,"behavvar_GS_ANOVA_pvals_with_glob.xlsx",sep=""))
-write_xlsx(DF_xlsx_glob0,paste(save_folder,"behavvar_GS_ANOVA_pvals_without_glob.xlsx",sep=""))
+#write_xlsx(DF_xlsx_glob1,paste(save_folder,"behavvar_GS_ANOVA_pvals_with_glob.xlsx",sep=""))
+#write_xlsx(DF_xlsx_glob0,paste(save_folder,"behavvar_GS_ANOVA_pvals_without_glob.xlsx",sep=""))
 
 
 
@@ -439,7 +221,7 @@ write_xlsx(DF_xlsx_glob0,paste(save_folder,"behavvar_GS_ANOVA_pvals_without_glob
 
 model_yvars = behav_vars
 DF = data.frame()
-  
+
 for (k in seq(1,length(model_yvars))){
   for (g in seq(1,2)){
     
@@ -491,11 +273,11 @@ for (k in seq(1,length(model_yvars))){
 } #k
 
 names(DF) = c("Model_yvar","BP_LSmean","K_LSmean","SZ_LSmean",
-               "Contrast_BP-K","tratio_BP-K","pval_BP-K",
-               #"LCL_Contrast_BP-K", "UCL_Contrast_BP-K",
-               "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
-               #"LCL_Contrast_SZ-K", "UCL_Contrast_SZ-K",
-               "global_var_in_model")
+              "Contrast_BP-K","tratio_BP-K","pval_BP-K",
+              #"LCL_Contrast_BP-K", "UCL_Contrast_BP-K",
+              "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
+              #"LCL_Contrast_SZ-K", "UCL_Contrast_SZ-K",
+              "global_var_in_model")
 
 
 DF_xlsx_glob0 = DF[DF$global_var_in_model == 0, ]
@@ -542,7 +324,3 @@ lsmeans(model_CBCL_ext,pairwise~"group", adjust="none")
 #model=aov(YIELD~VARIETY) #Build a model with the normal ANOVA command
 #res=model$residuals #Create an object of the residuals of Y
 #shapiro.test(res)
-
-
-
-

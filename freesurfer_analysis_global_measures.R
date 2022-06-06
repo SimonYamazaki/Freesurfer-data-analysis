@@ -27,8 +27,8 @@ library(NCmisc)
 GS_ANOVA_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_with_glob.xlsx"
 GS_ANOVA_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_GS_ANOVA_pvals_without_glob.xlsx"
 
-ANOVA_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_ANOVA_pvals_with_glob.xlsx"
-ANOVA_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_ANOVA_pvals_without_glob.xlsx"
+ANOVA_with_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_S_ANOVA_pvals_with_glob.xlsx"
+ANOVA_without_cov = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/globvar_S_ANOVA_pvals_without_glob.xlsx"
 
 #####
 # - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
@@ -81,7 +81,7 @@ data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
 
 # - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
-data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_excluded == 1),]
+data_csv_filtered <- data_csv_filtered[c(data_csv_filtered$Include_FS_studies_euler_outliers_excluded == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_excluded),]
 
 
@@ -355,7 +355,7 @@ write_xlsx(DF_xlsx_ICV0,GS_ANOVA_without_cov)
 
 #define some relevant naming 
 model_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
-glob = c("with_eICV", "without_eICV")
+glob = c("without_eICV","with_eICV")
 sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
 
 #split up the data into male and female 
@@ -519,18 +519,18 @@ names(DF_xlsx)<-c("Model_yvar","Group_Fval","Group_pval",
 col_names = c("Model_yvar", "K_LSmean",
               "Contrast_BP-K","tratio_BP-K","pval_BP-K",
               "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
-              "ICV_in_model","sex")
+              "global_var_in_model","sex")
 names(DFc)<-col_names
 
-DF_xlsx_glob0 = DFc[DFc$ICV_in_model == 0, ]
-DF_xlsx_glob1 = DFc[DFc$ICV_in_model == 1, ]
+DF_xlsx_glob0 = DFc[DFc$global_var_in_model == 0, ]
+DF_xlsx_glob1 = DFc[DFc$global_var_in_model == 1, ]
 
 write_xlsx(DF_xlsx_glob1,contrast_with_cov)
 write_xlsx(DF_xlsx_glob0,contrast_without_cov)
 
 
-DF_xlsx_glob0 = DF_xlsx[DF_xlsx$ICV_in_model == 0, ]
-DF_xlsx_glob1 = DF_xlsx[DF_xlsx$ICV_in_model == 1, ]
+DF_xlsx_glob0 = DF_xlsx[DF_xlsx$global_var_in_model == 0, ]
+DF_xlsx_glob1 = DF_xlsx[DF_xlsx$global_var_in_model == 1, ]
 
 write_xlsx(DF_xlsx_glob1,ANOVA_with_cov)
 write_xlsx(DF_xlsx_glob0,ANOVA_without_cov)
@@ -796,7 +796,6 @@ Anova(model4,type="III")
 
 
 
-
 #### Effect size ####
 
 
@@ -822,13 +821,15 @@ etaSquared(model_eff, type = 3, anova = T)[xvars=="group",yvars="eta.sq.part"]
 
 
 model_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness")
-glob = c("with_eICV", "without_eICV")
+glob = c("without_eICV","with_eICV")
 sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
 
 
 DF = data.frame()
 
-all_col_names = c("group","sex","age","site","TotalEulerNumber","eICV_samseg","group:sex")
+all_var_names = c("group","sex","age",
+                  "site","TotalEulerNumber",
+                  "eICV_samseg","group:sex")
 
 for (k in seq(1,length(model_vars))){
   for (g in seq(1,length(glob))){
@@ -846,23 +847,36 @@ for (k in seq(1,length(model_vars))){
       
       eta_vals = as.numeric(etaSquared(model_eff, type = 3, anova = T)[,yvars="eta.sq.part"])
       
-      var_idx = all_col_names %in% xvars
+      var_idx = all_var_names %in% xvars
       
       row = rep(NA,length(all_col_names))
       row[var_idx] = eta_vals
         
-      nrow(DF)
-      #rows for effect size xlsx table
-      DF[nrow(DF) + 1,] = row
+
+      emm_eff = emmeans(model_eff,specs="group")
+      effs = eff_size(emm_eff, sigma=sigma(model_eff), edf=df.residual(model_eff))
+      effs_BP = summary(effs)$effect.size[1]
+      effs_SZ = -summary(effs)$effect.size[3]
       
-      #emm_eff = emmeans(model_eff,specs="group")
-      #eff_size(emm_eff, sigma=sigma(model_eff), edf=df.residual(model_eff))
+      GS_in_model = ("group:sex" %in% attributes(Anova(model_eff,type = "III"))$row.names)*1
+      
+      #rows for effect size xlsx table
+      DF = rbindlist(list(DF, as.list(c(model_vars[k],row,
+                                        effs_BP,effs_SZ,
+                                        g-1,GS_in_model,sex[s]))))
       
       
     } #end s
   } #end g
 } #end i
 
+all_col_names = paste(all_var_names, "_par_eta_sq",sep="")
+  
+names(DF) = c("model_yvar",all_col_names,
+              "BP-K_contrast_cohensD","SZ-K_contrast_cohensD",
+              "globvar_in_model","GS_in_model","sex")
+
+write_xlsx(DF,"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/effect_sizes.xlsx")
 
 
 #3 ways of computing eta squared
