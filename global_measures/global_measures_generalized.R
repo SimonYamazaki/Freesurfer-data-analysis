@@ -49,17 +49,10 @@ ppwp_postfix = "_group_diff_pvalues_ICV"
 
 
 
-
+#what data should the models be run for 
 run_group = "K_BP_SZ" #choose from "K_BP_SZ", "BP_axis1", "SZ_axis1"
+siblings = TRUE #if siblings should be included 
 
-
-# what folder should the tables be saved in
-save_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/",run_group,"/",sep="")
-dir.create(file.path(dirname(save_folder), basename(save_folder)))
-
-#save folder for plots:
-plot_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/",run_group,"/",sep="")
-dir.create(file.path(dirname(plot_folder), basename(plot_folder)))
 
 
 #data path
@@ -74,24 +67,6 @@ data_csv <- read.table(data_path, header = TRUE, sep = ",", dec = ".")
 head(data_csv)
 summary(data_csv)
 
-
-## Preprocess 
-
-#filter the data with include variable
-# - extract rows with 1 in Include_FS_studies coloumn
-data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
-data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
-
-# - extract rows with 1 in Include_FS_studies_euler_outliers_sibpairs_out
-data_csv_filtered <- data_csv_filtered[c(data_csv_filtered$Include_FS_studies_euler_outliers_sibpairs_out == 1),]
-data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_sibpairs_out),]
-
-# - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
-#data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_identified == 1),]
-#data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_identified),]
-
-
-
 #make new variables with shorter and contained names
 # - tell r which variables are factors
 datab = data_csv_filtered
@@ -100,7 +75,52 @@ datab$site = as.factor(datab$MRI_site_v11)
 datab$diag = as.factor(datab$ksads_any_diag_excl_elim_lft_v11)
 datab$age = as.numeric(datab$MRI_age_v11)
 
-#what groups should be used
+
+
+## Preprocess 
+
+#filter the data with include variable
+# - extract rows with 1 in Include_FS_studies coloumn
+data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
+data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
+
+
+#preprocess and configure according to what data should be used
+if (siblings){
+  # - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
+  data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_identified == 1),]
+  data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_identified),]
+  
+  # what folder should the tables be saved in
+  save_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/",run_group,"_with_siblings/",sep="")
+  dir.create(file.path(dirname(save_folder), basename(save_folder)))
+  
+  #save folder for plots:
+  plot_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/",run_group,"_with_siblings/",sep="")
+  dir.create(file.path(dirname(plot_folder), basename(plot_folder)))
+  
+  
+}else {
+  # - extract rows with 1 in Include_FS_studies_euler_outliers_sibpairs_out
+  data_csv_filtered <- data_csv_filtered[c(data_csv_filtered$Include_FS_studies_euler_outliers_sibpairs_out == 1),]
+  data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_sibpairs_out),]
+  
+  # what folder should the tables be saved in
+  save_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/",run_group,"/",sep="")
+  dir.create(file.path(dirname(save_folder), basename(save_folder)))
+  
+  #save folder for plots:
+  plot_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/",run_group,"/",sep="")
+  dir.create(file.path(dirname(plot_folder), basename(plot_folder)))
+  
+}
+
+
+
+
+# Configure what groups should be used
+# Define contrast sign
+# check below what the contrast signs should be
 
 if (run_group == "BP_axis1"){
   datab$group = datab$HRS_BP_K_axis1
@@ -125,8 +145,6 @@ if (run_group == "K_BP_SZ"){
 
 #datab$group = as.factor(datab$HighRiskStatus_axis1_v11)
 
-
-#define contrast signs
 # - check how contrasts are made and how contrast signs should be
 levels(datab$group)
 m1 = lm(BrainTotalVol~group,data=datab)
@@ -148,6 +166,8 @@ y_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_s
 #encoded as a formula string
 general_cov = c("age","site","TotalEulerNumber")
 general_cov_formula = paste(general_cov,collapse = " + ")
+
+
 
 
 ##############################
@@ -210,6 +230,7 @@ for (i in seq(1,length(model_vars))){
       
       #save both models in a list
       models = list(model_gs,model[[glob[g]]][[model_vars[i]]])
+      model_type = list("GS","No_interactions")
       
     }
     else{    #if the group/sex interaction is significant 
@@ -223,6 +244,7 @@ for (i in seq(1,length(model_vars))){
       
       #save the model with the group/sex interaction
       models = list(model[[glob[g]]][[model_vars[i]]])
+      model_type = list("GS")
     }
     
     # loop that makes rows in the ANOVA table excel 
@@ -230,6 +252,7 @@ for (i in seq(1,length(model_vars))){
     # one row with the interaction included and one row with out
     for (m in seq(1,length(models))){
       mm = models[[m]]
+      subs = length(mm$residuals)
       
       #extract relevant statistics for each variable in the model 
       group_F = Anova(mm,type = "III")$"F value"[xvars=="group"]
@@ -254,23 +277,25 @@ for (i in seq(1,length(model_vars))){
         ICV_pv = NA
       }       
       
-      #the first index in m is always the with a group/sex interaction
-      if (m==1){
-        rw = list(model_vars[i], 
-                  group_F, group_pv, sex_F, sex_pv,
-                  age_F, age_pv, site_F, site_pv, 
-                  EulerNumber_F, EulerNumber_pv, 
-                  ICV_F, ICV_pv, GS_F, GS_pvals,
-                  sign_GS,m,g-1)
+      #the first index in m is always the model with a group/sex interaction
+      if (model_type[[m]]=="GS"){
+        GS_in = 1
       }
-      else{ #if m is 2 then the model is does not include the interaction
-        rw = list(model_vars[i], 
-                  group_F, group_pv, sex_F, sex_pv, 
-                  age_F, age_pv, site_F, site_pv, 
-                  EulerNumber_F, EulerNumber_pv, 
-                  ICV_F, ICV_pv, NA,   NA,
-                  sign_GS,m-2,g-1)
+      else if (model_type[[m]]=="No_interactions"){ 
+        GS_F = NA
+        GS_pv = NA
+        GS_in = 0
       }
+      
+      #append the row to the dataframe 
+      DF = rbindlist(list(DF, as.list(c(model_vars[i],
+                                        group_F, group_pv, sex_F, sex_pv,
+                                        age_F, age_pv, site_F, site_pv, 
+                                        EulerNumber_F, EulerNumber_pv, 
+                                        ICV_F, ICV_pv,
+                                        GS_F, GS_pv, 
+                                        sign_GS, GS_in, 
+                                        g-1, model_type[[m]], subs))))
       
       #append the row to the dataframe 
       DF = rbindlist(list(DF, rw))
@@ -284,8 +309,11 @@ col_names = c("Model_yvar",
               "Group_Fval","Group_pval","Sex_Fval","Sex_pval",
               "Age_Fval","Age_pval","Site_Fval","Site_pval",
               "EulerNumber_Fval","Eulernumber_pval",
-              "ICV_Fval","ICV_pval","Group_sex_Fval","Group_sex_pval",
-              "Significant_GS_interaction","GS_in_model","eICV_in_model")
+              "ICV_Fval","ICV_pval",
+              "Group_sex_Fval","Group_sex_pval",
+              "Significant_GS_interaction","GS_in_model",
+              "ICV_in_model","model_type","n_subjects")
+
 names(DF)<-col_names
 
 
@@ -329,14 +357,6 @@ for (k in seq(1,length(model_vars))){
     
     #extract the dataframe containing the relevant sex data
     df_sex = dataf[[ss]]
-    
-    #only continue with both sex data when the global variable is mean_thickness 
-    #if (model_vars[k] == "mean_thickness" & sex[ss] != "both"){
-    #  next
-    #}
-    #if (model_vars[k] != "mean_thickness" & sex[ss] == "both"){
-    #  next
-    #}
     
     
     for (gg in seq(1,2)){
@@ -467,7 +487,7 @@ c_cols = expand.grid(c("contrast","t-ratio","pval","LCL","UCL"), contrast_names)
 c_cols = paste(c_cols$Var1, c_cols$Var2,sep = "_")
 c_cols = gsub(" ", "", c_cols)
 
-group_lsmeans = paste("LSmean_",group_levels)
+group_lsmeans = paste("LSmean_",group_levels,sep = "")
 
 #same excel saving procedure as above 
 col_names = c("Model_yvar", group_lsmeans, c_cols,
