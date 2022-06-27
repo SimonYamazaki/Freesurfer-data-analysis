@@ -66,7 +66,7 @@ data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
 
 # - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
-data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_excluded == 1),]
+data_csv_filtered <- data_csv_filtered[c(data_csv_filtered$Include_FS_studies_euler_outliers_excluded == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_excluded),]
 
 #rename to a shorter name for convenience
