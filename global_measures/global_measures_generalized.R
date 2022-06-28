@@ -12,7 +12,7 @@ library(ggnewscale)
 library(writexl)
 library(car)
 library(NCmisc)
-
+library(BayesFactor)
 
 #This script is intended for computation of statistics on global brain measures
 #in multiple groups and comparing to a control group. The script generates:
@@ -71,9 +71,9 @@ summary(data_csv)
 # - tell r which variables are factors
 datab = data_csv_filtered
 datab$sex = as.factor(datab$Sex_child)
-datab$site = as.factor(datab$MRI_site_v11)
-datab$diag = as.factor(datab$ksads_any_diag_excl_elim_lft_v11)
-datab$age = as.numeric(datab$MRI_age_v11)
+datab$site = as.factor(datab$MR_Site)
+datab$diag = as.factor(datab$Axis.1_diag_v11) #ksads_any_diag_excl_elim_lft_v11)
+datab$age = as.numeric(datab$MRI_age)
 
 
 
@@ -139,7 +139,7 @@ if (run_group == "SZ_axis1"){
   contrast_signs = c(-1,-1, 1) # for K/SZ-/SZ+ 
   }
 if (run_group == "K_BP_SZ"){
-  datab$group = as.factor(datab$HighRiskStatus_v11)
+  datab$group = as.factor(datab$HighRiskStatus)
   contrast_signs = c(1,1, -1) # for K/BP/SZ 
 }
 
@@ -693,12 +693,157 @@ write_xlsx(DF,effect_sizes_path)
 
 
 
-model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site + eICV_samseg, data=datab)
+
+### Testing area  #### 
+
+model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
 Anova(model_bvol_glob,type="III")
-model_bvol_glob = update(model_bvol_glob,~.-group:sex)
-etaSquared(model_bvol_glob, type = 3, anova = T)
+lsmeans(model_bvol_glob,pairwise ~ group)
+
+model_bvol_glob2 = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
+
+#anova(model_bvol_glob, model_bvol_glob2)
+#model_bvol_glob = update(model_bvol_glob,~.-group:sex)
+#etaSquared(model_bvol_glob, type = 3, anova = T)
 
 emm_eff = emmeans(model_bvol_glob,specs="group")
 
 #cohens d
 eff_size(emm_eff, sigma=sigma(model_bvol_glob), edf=df.residual(model_bvol_glob))
+
+
+
+#### Bayesian factor analysis 
+
+###find ud af om bayes factor er log - det er ikke log 
+#priors ? modified separate g-priors on categorical, regular g-priors with all g's same on continues 
+#what is the prior odds?
+#sammenlign resultater med en anden pakke 
+#få styr på proportional error 
+#få styr på multiple comparisons tests - side 19 i bayestestR
+#could we get the samples used to compute lsmeans to do the ttest ourselves?
+#change prior scales???
+
+## Each effect in anova model 
+#age
+bf1 = lmBF(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
+bf2 = lmBF(BrainTotalVol ~ group*sex + TotalEulerNumber + site, data=datab)
+bf1 / bf2
+
+#Euler number
+bf1 = lmBF(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
+bf2 = lmBF(BrainTotalVol ~ group*sex + age + site, data=datab)
+bf1 / bf2
+
+#Site
+bf1 = lmBF(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
+bf2 = lmBF(BrainTotalVol ~ group*sex + age + TotalEulerNumber, data=datab)
+bf1 / bf2
+newbf = recompute(bf1 / bf2, iterations = 5000000)
+newbf
+#5.222434 ±1.32%
+
+#Group/sex
+bf1 = lmBF(BrainTotalVol ~ group + sex + group:sex + age + TotalEulerNumber + site, data=datab)
+bf2 = lmBF(BrainTotalVol ~ group + sex +             age + TotalEulerNumber + site, data=datab)
+bf_interaction = bf1 / bf2
+newbf = recompute(bf_interaction, iterations = 5000000)
+newbf
+extractBF(newbf, logbf = FALSE, onlybf = FALSE)
+#8.075819 ±0.53%
+
+
+
+#sex 1
+bf1 = lmBF(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex1)
+bf2 = lmBF(BrainTotalVol ~         age + TotalEulerNumber + site, data=data_sex1)
+bf_group = bf1 / bf2
+bf_group
+
+#sex 0
+bf1 = lmBF(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex0)
+bf2 = lmBF(BrainTotalVol ~         age + TotalEulerNumber + site, data=data_sex0)
+bf_group = bf1 / bf2
+bf_group
+
+
+#Compute group contrasts for a certain model
+#ideas: 
+#do it using diff estimate and std-error 
+#do it with a formula in ttestBF using only the two groups in the data
+    # can you get the same t-statistics doing that?
+#make the different ways of doing it give the same result
+
+model_bvol_glob = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
+Anova(model_bvol_glob,type="III")
+lsmeans(model_bvol_glob,pairwise ~ group)
+
+result <- ttest.tstat(t = 1.94, n1 = sum(datab$group=="K"), n2 = sum(datab$group=="BP"))
+exp(result[['bf']])
+result <- ttest.tstat(t = 2.996, n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="SZ"))
+exp(result[['bf']])
+result <- ttest.tstat(t = 1.281, n1 = sum(datab$group=="K"), n2 = sum(datab$group=="SZ"))
+exp(result[['bf']])
+
+
+bf1 = lmBF(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab)
+samples = posterior(bf1, iterations = 100000)
+head(samples)
+
+consistent = ( samples[, "group-SZ"] > samples[, "group-K"] )
+N_consistent = sum(consistent)
+
+bf_restriction_against_full = (N_consistent / 100000) #/ (1 / 2)
+bf_restriction_against_full
+
+bf_full_against_null = as.vector(bf1)
+
+bf_restriction_against_null = bf_restriction_against_full * bf_full_against_null
+bf_restriction_against_null
+
+
+
+
+
+library(bayestestR)
+
+m4 <- brm(Sepal.Length ~ Species * Petal.Length, data = iris,
+          prior = 
+            set_prior("student_t(3, 6, 6)", class = "Intercept") + 
+            set_prior("student_t(3, 0, 6)", class = "sigma") + 
+            set_prior("normal(0, 1)", coef = "Petal.Length") + 
+            set_prior("normal(0, 3)", coef = c("Speciesversicolor", "Speciesvirginica")) + 
+            set_prior("normal(0, 2)", coef = c("Speciesversicolor:Petal.Length", "Speciesvirginica:Petal.Length")),
+          chains = 10, iter = 5000, warmup = 1000,
+          save_pars = save_pars(all = TRUE))
+
+#!!!! can be divided by one another, provided both objects have the same denominator. !!!! - they do, because they are compared to the intercept model
+m1 = lm(BrainTotalVol ~ group + sex + group:sex + age + TotalEulerNumber + site, data=datab)
+m2 = lm(BrainTotalVol ~ group + sex +             age + TotalEulerNumber + site, data=datab)
+comparison <- bayesfactor(m1, m2, direction=0)
+comparison
+bayesfactor(comparison)
+
+#exp(as.numeric(comparison)[2])
+#bayesfactor(comparison)
+
+bm = bayesfactor_models( m1, m2 ,denominator = m2)
+bayesfactor_inclusion(bm)
+
+group_diff <- emmeans(m2, pairwise ~ group)
+bayesfactor_parameters(group_diff, prior = m2)
+
+
+
+
+
+## Bayesian LSmeans
+#source("https://gist.githubusercontent.com/mattansb/f383af8c0dfe88922fb5c75e8572d03e/raw/9616f4a2c959716a1e82bb4a20fd60a8fe8d0f3e/BFBayesFactor_2_emmeans.R")
+#options(contrasts=c('contr.sum', 'contr.poly'))
+#library(magrittr)
+#library(purrr)
+#fit_BF <- anovaBF(BrainTotalVol ~ group + site, data = datab)
+#emmeans(fit_BF[4],pairwise~group)
+
+
+
