@@ -13,6 +13,7 @@ library(writexl)
 library(car)
 library(NCmisc)
 library(BayesFactor)
+library(stringr)
 
 #This script is intended for computation of statistics on global brain measures
 #in multiple groups and comparing to a control group. The script generates:
@@ -71,8 +72,8 @@ summary(data_csv)
 # - tell r which variables are factors
 datab = data_csv_filtered
 datab$sex = as.factor(datab$Sex_child)
-datab$site = as.factor(datab$MR_Site)
-datab$diag = as.factor(datab$Axis.1_diag_v11) #ksads_any_diag_excl_elim_lft_v11)
+datab$site = as.factor(datab$MRI_site_v11)
+datab$diag = as.factor(datab$ksads_any_diag_excl_elim_lft_v11) #Axis.1_diag_v11) 
 datab$age = as.numeric(datab$MRI_age)
 
 
@@ -139,7 +140,7 @@ if (run_group == "SZ_axis1"){
   contrast_signs = c(-1,-1, 1) # for K/SZ-/SZ+ 
   }
 if (run_group == "K_BP_SZ"){
-  datab$group = as.factor(datab$HighRiskStatus)
+  datab$group = as.factor(datab$HighRiskStatus_v11)
   contrast_signs = c(1,1, -1) # for K/BP/SZ 
 }
 
@@ -165,7 +166,7 @@ y_vars = c("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_s
 #covariates that are included in all models 
 #encoded as a formula string
 general_cov = c("age","site","TotalEulerNumber")
-general_cov_formula = paste(general_cov,collapse = " + ")
+general_cov_formula = paste(general_cov,collapse = "+")
 
 
 
@@ -202,11 +203,14 @@ for (i in seq(1,length(model_vars))){
   
   for (g in seq(1,length(glob))){
     if (glob[g] == "with_eICV"){
-      f = paste(model_vars[i],"~","+","group*sex","+",general_cov_formula,"+","eICV_samseg") #model with ICV
+      f = paste(model_vars[i],"~","+group+sex+group:sex","+",general_cov_formula,"+","eICV_samseg",sep="") #model with ICV
+      f_without_gs = paste(model_vars[i],"~","+","group+sex","+",general_cov_formula,"+","eICV_samseg",sep="") #model with ICV
     }
     else{
-      f = paste(model_vars[i],"~","+","group*sex","+",general_cov_formula) #model without ICV
+      f = paste(model_vars[i],"~","+group+sex+group:sex","+",general_cov_formula,sep="") #model without ICV
+      f_without_gs = paste(model_vars[i],"~","+","group+sex","+",general_cov_formula,sep="") #model with ICV
     }
+    
     #run the actual model
     model[[glob[g]]][[model_vars[i]]] = lm(f,data=datab)  
     
@@ -230,6 +234,7 @@ for (i in seq(1,length(model_vars))){
       
       #save both models in a list
       models = list(model_gs,model[[glob[g]]][[model_vars[i]]])
+      model_formula = list(f,f_without_gs)
       model_type = list("GS","No_interactions")
       
     }
@@ -239,11 +244,12 @@ for (i in seq(1,length(model_vars))){
       sign_GS = 1
       
       #save the anova F and p-value for the group/sex interaction
-      GS_pvals = Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"Pr(>F)"[xvars=="group:sex"]
+      GS_pv = Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"Pr(>F)"[xvars=="group:sex"]
       GS_F = Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"F value"[xvars=="group:sex"]
       
       #save the model with the group/sex interaction
       models = list(model[[glob[g]]][[model_vars[i]]])
+      model_formula = list(f)
       model_type = list("GS")
     }
     
@@ -253,6 +259,7 @@ for (i in seq(1,length(model_vars))){
     for (m in seq(1,length(models))){
       mm = models[[m]]
       subs = length(mm$residuals)
+      mf = model_formula[[m]]
       
       #extract relevant statistics for each variable in the model 
       group_F = Anova(mm,type = "III")$"F value"[xvars=="group"]
@@ -267,38 +274,121 @@ for (i in seq(1,length(model_vars))){
       site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
       EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
       
+      
+
+      ############### Bayes Factor analysis 
+      
+      #group
+      bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=gsub("\\+group", "",mf))), data=datab)
+      bf_interaction = bf1 / bf2
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_g = as.numeric(bf_res[1])
+      bf_g_error = as.numeric(bf_res[2])
+      
+      # age
+      bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=gsub("\\+age", "",mf))), data=datab)
+      bf_interaction = bf1 / bf2
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_age = as.numeric(bf_res[1])
+      bf_age_error = as.numeric(bf_res[2])
+      
+      # Eulernumer
+      bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=gsub("\\+TotalEulerNumber", "",mf))), data=datab)
+      bf_interaction = bf1 / bf2
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_euler = as.numeric(bf_res[1])
+      bf_euler_error = as.numeric(bf_res[2])
+      
+      #Site
+      bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=gsub("\\+site", "",mf))), data=datab)
+      bf_interaction = bf1 / bf2
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_site = as.numeric(bf_res[1])
+      bf_site_error = as.numeric(bf_res[2])
+      
+      #sex
+      bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=gsub("\\+sex", "",mf))), data=datab)
+      bf_interaction = bf1 / bf2
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_sex = as.numeric(bf_res[1])
+      bf_sex_error = as.numeric(bf_res[2])
+      
+      ############# BF above 
+      
+      
+      
       #if the model includes ICV, then also define the anova statistics of ICV
       if (glob[g] == "with_eICV"){
         ICV_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
         ICV_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
+        
+        #sex
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+eICV_samseg", "",mf))), data=datab)
+        bf_interaction = bf1 / bf2
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_glob = as.numeric(bf_res[1])
+        bf_glob_error = as.numeric(bf_res[2])
       }
       else{ #else, dont define them if the model is without ICV
         ICV_F = NA
         ICV_pv = NA
+        bf_glob = NA
+        bf_glob_error = NA
       }       
       
       #the first index in m is always the model with a group/sex interaction
       if (model_type[[m]]=="GS"){
         GS_in = 1
+        
+        #Group/sex BF
+        bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=f_without_gs)), data=datab)
+        bf_interaction = bf1 / bf2
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_gs = as.numeric(bf_res[1])
+        bf_gs_error = as.numeric(bf_res[2])
+        
       }
       else if (model_type[[m]]=="No_interactions"){ 
         GS_F = NA
         GS_pv = NA
         GS_in = 0
+        
+        bf_gs = NA
+        bf_gs_error = NA
       }
       
       #append the row to the dataframe 
-      DF = rbindlist(list(DF, as.list(c(model_vars[i],
-                                        group_F, group_pv, sex_F, sex_pv,
-                                        age_F, age_pv, site_F, site_pv, 
-                                        EulerNumber_F, EulerNumber_pv, 
-                                        ICV_F, ICV_pv,
-                                        GS_F, GS_pv, 
-                                        sign_GS, GS_in, 
-                                        g-1, model_type[[m]], subs))))
+      #DF = rbindlist(list(DF, as.list(c(model_vars[i],
+      #                                  group_F, group_pv, bf_g, bf_g_error,
+      #                                  sex_F, sex_pv, bf_sex, bf_sex_error,
+      #                                  age_F, age_pv, bf_age, bf_age_error,
+      #                                  site_F, site_pv, bf_site, bf_site_error,
+      #                                  EulerNumber_F, EulerNumber_pv, bf_euler, bf_euler_error,
+      #                                  ICV_F, ICV_pv, bf_glob, bf_glob_error,
+      #                                  GS_F, GS_pv, bf_gs, bf_gs_error,
+      #                                  sign_GS, GS_in, 
+      #                                  g-1, model_type[[m]], subs))))
       
       #append the row to the dataframe 
-      DF = rbindlist(list(DF, rw))
+      rw = c(model_vars[i],
+             group_F, group_pv, bf_g, bf_g_error,
+             sex_F, sex_pv, bf_sex, bf_sex_error,
+             age_F, age_pv, bf_age, bf_age_error,
+             site_F, site_pv, bf_site, bf_site_error,
+             EulerNumber_F, EulerNumber_pv, bf_euler, bf_euler_error,
+             ICV_F, ICV_pv, bf_glob, bf_glob_error,
+             GS_F, GS_pv, bf_gs, bf_gs_error,
+             sign_GS, GS_in, 
+             g-1, model_type[[m]], subs)
+      
+      DF = rbindlist(list(DF, as.list(rw)))
       
     } # for m 
   } #g
@@ -306,11 +396,13 @@ for (i in seq(1,length(model_vars))){
 
 #define the coloum names of the dataframe which is converted to an excel 
 col_names = c("Model_yvar",
-              "Group_Fval","Group_pval","Sex_Fval","Sex_pval",
-              "Age_Fval","Age_pval","Site_Fval","Site_pval",
-              "EulerNumber_Fval","Eulernumber_pval",
-              "ICV_Fval","ICV_pval",
-              "Group_sex_Fval","Group_sex_pval",
+              "Group_Fval","Group_pval","Group_bf", "Group_bf_error",
+              "Sex_Fval","Sex_pval", "Sex_bf", "Sex_bf_error",
+              "Age_Fval","Age_pval", "Age_bf", "Age_bf_error",
+              "Site_Fval","Site_pval", "Site_bf", "Site_bf_error",
+              "EulerNumber_Fval","Eulernumber_pval", "Eulernumber_bf", "Eulernumber_bf_error",
+              "ICV_Fval","ICV_pval", "ICV_bf", "ICV_bf_error",
+              "Group_sex_Fval","Group_sex_pval", "Group_sex_bf", "Group_sex_bf_error",
               "Significant_GS_interaction","GS_in_model",
               "ICV_in_model","model_type","n_subjects")
 
@@ -318,8 +410,8 @@ names(DF)<-col_names
 
 
 #split up the dataframe in models with ICV and without
-DF_xlsx_ICV0 = DF[DF$eICV_in_model == 0, ]
-DF_xlsx_ICV1 = DF[DF$eICV_in_model == 1, ]
+DF_xlsx_ICV0 = DF[DF$ICV_in_model == 0, ]
+DF_xlsx_ICV1 = DF[DF$ICV_in_model == 1, ]
 
 #save the two dataframes in the a specified save path 
 write_xlsx(DF_xlsx_ICV1,paste(save_folder,GS_ANOVA_with_cov,sep = ""))
@@ -700,8 +792,13 @@ model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, 
 Anova(model_bvol_glob,type="III")
 lsmeans(model_bvol_glob,pairwise ~ group)
 
-model_bvol_glob2 = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
+model_bvol_glob2 = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex0) #eICV_samseg
+Anova(model_bvol_glob2,type="III")
 
+model_bvol_glob2 = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex1) #eICV_samseg
+Anova(model_bvol_glob2,type="III")
+
+#model_bvol_glob2 = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
 #anova(model_bvol_glob, model_bvol_glob2)
 #model_bvol_glob = update(model_bvol_glob,~.-group:sex)
 #etaSquared(model_bvol_glob, type = 3, anova = T)
@@ -718,13 +815,24 @@ eff_size(emm_eff, sigma=sigma(model_bvol_glob), edf=df.residual(model_bvol_glob)
 ###find ud af om bayes factor er log - det er ikke log 
 #priors ? modified separate g-priors on categorical, regular g-priors with all g's same on continues 
 #what is the prior odds?
-#sammenlign resultater med en anden pakke 
 #få styr på proportional error 
 #få styr på multiple comparisons tests - side 19 i bayestestR
-#could we get the samples used to compute lsmeans to do the ttest ourselves?
 #change prior scales???
 
+
 ## Each effect in anova model 
+
+#Group/sex
+bf1 = lmBF(BrainTotalVol ~ group + sex + group:sex + age + TotalEulerNumber + site, data=datab)
+bf2 = lmBF(BrainTotalVol ~ group + sex +             age + TotalEulerNumber + site, data=datab)
+bf_interaction = bf1 / bf2
+newbf = recompute(bf_interaction, iterations = 10000)
+newbf
+bf = extractBF(newbf, logbf = FALSE, onlybf = FALSE)
+#8.075819 ±0.53%
+as.numeric(bf[1])
+as.numeric(bf[2])
+
 #age
 bf1 = lmBF(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
 bf2 = lmBF(BrainTotalVol ~ group*sex + TotalEulerNumber + site, data=datab)
@@ -739,19 +847,14 @@ bf1 / bf2
 bf1 = lmBF(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab)
 bf2 = lmBF(BrainTotalVol ~ group*sex + age + TotalEulerNumber, data=datab)
 bf1 / bf2
-newbf = recompute(bf1 / bf2, iterations = 5000000)
+newbf = recompute(bf1 / bf2, iterations = 50000)
 newbf
 #5.222434 ±1.32%
 
-#Group/sex
-bf1 = lmBF(BrainTotalVol ~ group + sex + group:sex + age + TotalEulerNumber + site, data=datab)
-bf2 = lmBF(BrainTotalVol ~ group + sex +             age + TotalEulerNumber + site, data=datab)
-bf_interaction = bf1 / bf2
-newbf = recompute(bf_interaction, iterations = 5000000)
-newbf
-extractBF(newbf, logbf = FALSE, onlybf = FALSE)
-#8.075819 ±0.53%
-
+#Sex #THIS ANALYSIS IS INVALID
+bf1 = lmBF(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab)
+bf2 = lmBF(BrainTotalVol ~ group       + age + TotalEulerNumber + site, data=datab)
+bf1 / bf2
 
 
 #sex 1
@@ -767,73 +870,62 @@ bf_group = bf1 / bf2
 bf_group
 
 
+
 #Compute group contrasts for a certain model
-#ideas: 
-#do it using diff estimate and std-error 
-#do it with a formula in ttestBF using only the two groups in the data
-    # can you get the same t-statistics doing that?
-#make the different ways of doing it give the same result
 
-model_bvol_glob = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
+#model_bvol_glob = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
+model_bvol_glob = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex0) #eICV_samseg
 Anova(model_bvol_glob,type="III")
-lsmeans(model_bvol_glob,pairwise ~ group)
+ls=lsmeans(model_bvol_glob,pairwise ~ group,adjust="none")
+ls
 
-result <- ttest.tstat(t = 1.94, n1 = sum(datab$group=="K"), n2 = sum(datab$group=="BP"))
+# the standard error of the contrast test
+sqrt( sigma(model_bvol_glob)**2 * (1/sum(data_sex0$group=="BP") + 1/sum(data_sex0$group=="K")) )
+
+# how lsmean does the test
+dof = length(data_sex0$group) - 3 - 1 - 1 - 1
+2*pt(q=2.555192, df=dof, lower.tail=FALSE)
+
+t_ratios = summary(ls)$contrasts$"t.ratio"
+
+#looks like the degrees of freedom is n1+n2-2
+result <- ttest.tstat(t = t_ratios[1], n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="K"))
 exp(result[['bf']])
-result <- ttest.tstat(t = 2.996, n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="SZ"))
+result[['properror']]
+result <- ttest.tstat(t = t_ratios[2], n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="SZ"))
 exp(result[['bf']])
-result <- ttest.tstat(t = 1.281, n1 = sum(datab$group=="K"), n2 = sum(datab$group=="SZ"))
+result[['properror']]
+result <- ttest.tstat(t = t_ratios[3], n1 = sum(datab$group=="SZ"), n2 = sum(datab$group=="K"))
 exp(result[['bf']])
+result[['properror']]
 
 
-bf1 = lmBF(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab)
-samples = posterior(bf1, iterations = 100000)
+# Following tutorial from: http://bayesfactor.blogspot.com/2015/01/multiple-comparisons-with-bayesfactor-2.html
+data_BP_K = datab[!datab$group=="SZ",]
+data_BP_K_sex0 = data_sex0[!data_sex0$group=="SZ",]
+
+bf1 = lmBF(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_BP_K)
+
+bf1 = lmBF(formula=BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_BP_K_sex0)
+
+samples = posterior(bf1, iterations = 10000)
 head(samples)
 
-consistent = ( samples[, "group-SZ"] > samples[, "group-K"] )
-N_consistent = sum(consistent)
+mean(samples[, "group-BP"]) - mean(samples[, "group-K"])
 
-bf_restriction_against_full = (N_consistent / 100000) #/ (1 / 2)
+consistent = ( samples[, "group-BP"] > samples[, "group-K"] )
+N_consistent = sum(consistent)
+posterior_prob = (N_consistent / 10000)
+
+bf_restriction_against_full = posterior_prob / (1 / 2) # bf comparing the restriction against full model (in which all 3 means are unequal)
 bf_restriction_against_full
 
-bf_full_against_null = as.vector(bf1)
-
-bf_restriction_against_null = bf_restriction_against_full * bf_full_against_null
-bf_restriction_against_null
-
+#bf_full_against_null = as.vector(bf1)
+#bf_restriction_against_null = bf_restriction_against_full * bf_full_against_null
+#bf_restriction_against_null
 
 
-
-
-library(bayestestR)
-
-m4 <- brm(Sepal.Length ~ Species * Petal.Length, data = iris,
-          prior = 
-            set_prior("student_t(3, 6, 6)", class = "Intercept") + 
-            set_prior("student_t(3, 0, 6)", class = "sigma") + 
-            set_prior("normal(0, 1)", coef = "Petal.Length") + 
-            set_prior("normal(0, 3)", coef = c("Speciesversicolor", "Speciesvirginica")) + 
-            set_prior("normal(0, 2)", coef = c("Speciesversicolor:Petal.Length", "Speciesvirginica:Petal.Length")),
-          chains = 10, iter = 5000, warmup = 1000,
-          save_pars = save_pars(all = TRUE))
-
-#!!!! can be divided by one another, provided both objects have the same denominator. !!!! - they do, because they are compared to the intercept model
-m1 = lm(BrainTotalVol ~ group + sex + group:sex + age + TotalEulerNumber + site, data=datab)
-m2 = lm(BrainTotalVol ~ group + sex +             age + TotalEulerNumber + site, data=datab)
-comparison <- bayesfactor(m1, m2, direction=0)
-comparison
-bayesfactor(comparison)
-
-#exp(as.numeric(comparison)[2])
-#bayesfactor(comparison)
-
-bm = bayesfactor_models( m1, m2 ,denominator = m2)
-bayesfactor_inclusion(bm)
-
-group_diff <- emmeans(m2, pairwise ~ group)
-bayesfactor_parameters(group_diff, prior = m2)
-
-
+bf1 = lmBF(formula = eval(parse(text="BrainTotalVol ~ group + sex + group:sex + age + TotalEulerNumber + site")), data=datab)
 
 
 
@@ -846,4 +938,20 @@ bayesfactor_parameters(group_diff, prior = m2)
 #emmeans(fit_BF[4],pairwise~group)
 
 
+## ttest BF with predictions, however WITHOUT lsmeans but regular means
+#data_BP_K = datab[!datab$group=="SZ",]
+#predict(model_bvol_glob, newdata = data.frame(group = c("K","BP","SZ"), TotalEulerNumber = mean(datab$TotalEulerNumber), age = mean(datab$age) ))
+#K_vals = predict(model_bvol_glob )[datab$group=="K"]
+#ttestBF(x=as.numeric(BP_vals), y=as.numeric(K_vals), iterations=1000)
+
+
+
+## estimate the standard errors on the lsmean
+#sbp = sd(data_sex0$BrainTotalVol[data_sex0$group=="BP"]) #/ sqrt(length(data_sex0$group))
+#ssz = sd(data_sex0$BrainTotalVol[data_sex0$group=="SZ"])
+#sk = sd(data_sex0$BrainTotalVol[data_sex0$group=="K"])
+#s = c(sbp, ssz, sk)
+#n = c(sum(data_sex0$group=="BP"), sum(data_sex0$group=="SZ"), sum(data_sex0$group=="K"))
+#s.p <- sqrt( sum((n - 1) * s^2) / sum(n - 1) ) 
+#s.p / sqrt(n)
 
