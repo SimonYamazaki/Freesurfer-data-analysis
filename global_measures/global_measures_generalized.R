@@ -874,7 +874,7 @@ bf_group
 #Compute group contrasts for a certain model
 
 #model_bvol_glob = lm(BrainTotalVol ~ group + sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
-model_bvol_glob = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex0) #eICV_samseg
+model_bvol_glob = lm(total_area ~ group + age + TotalEulerNumber + site, data=data_sex0) #eICV_samseg
 Anova(model_bvol_glob,type="III")
 ls=lsmeans(model_bvol_glob,pairwise ~ group,adjust="none")
 ls
@@ -888,16 +888,26 @@ dof = length(data_sex0$group) - 3 - 1 - 1 - 1
 
 t_ratios = summary(ls)$contrasts$"t.ratio"
 
+dof = model_bvol_glob$df.residual
+
+
 #looks like the degrees of freedom is n1+n2-2
+# or its n1-1
+
+result <- ttest.tstat(t = t_ratios[1], n1 = dof+1)#n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="K"))
+exp(result[['bf']])
+
 result <- ttest.tstat(t = t_ratios[1], n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="K"))
 exp(result[['bf']])
+
 result[['properror']]
-result <- ttest.tstat(t = t_ratios[2], n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="SZ"))
+result <- ttest.tstat(t = t_ratios[2], n1 = dof+1) #n1 = sum(datab$group=="BP"), n2 = sum(datab$group=="SZ"))
 exp(result[['bf']])
 result[['properror']]
-result <- ttest.tstat(t = t_ratios[3], n1 = sum(datab$group=="SZ"), n2 = sum(datab$group=="K"))
+result <- ttest.tstat(t = t_ratios[3], n1 = dof+1) #n1 = sum(datab$group=="SZ"), n2 = sum(datab$group=="K"))
 exp(result[['bf']])
 result[['properror']]
+
 
 
 # Following tutorial from: http://bayesfactor.blogspot.com/2015/01/multiple-comparisons-with-bayesfactor-2.html
@@ -925,7 +935,23 @@ bf_restriction_against_full
 #bf_restriction_against_null
 
 
-bf1 = lmBF(formula = eval(parse(text="BrainTotalVol ~ group + sex + group:sex + age + TotalEulerNumber + site")), data=datab)
+## BayestestR emm BF
+
+#library(rstanarm)
+#library(bayestestR)
+#stan_model <- stan_glm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=datab,
+#                        prior = normal(0,1),                          # as per Rouder et al., 2012
+#                        prior_intercept = student_t(3,0,10),          # weakly informative
+#                        prior_aux = exponential(.1),
+#                        chains = 4, iter = 10000)                 # weakly informative
+
+#c_color_main <- pairs(emmeans(stan_model, ~ group))
+                        
+#describe_posterior(c_color_main,
+#                   estimate = "median", dispersion = TRUE,
+#                   ci = .9, ci_method = "hdi",
+#                   test = c("bayesfactor"),
+#                   bf_prior = stan_model)
 
 
 
@@ -941,7 +967,17 @@ bf1 = lmBF(formula = eval(parse(text="BrainTotalVol ~ group + sex + group:sex + 
 ## ttest BF with predictions, however WITHOUT lsmeans but regular means
 #data_BP_K = datab[!datab$group=="SZ",]
 #predict(model_bvol_glob, newdata = data.frame(group = c("K","BP","SZ"), TotalEulerNumber = mean(datab$TotalEulerNumber), age = mean(datab$age) ))
+#model_bvol_glob = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=datab) #eICV_samseg
+#BP_vals = predict(model_bvol_glob )[datab$group=="BP"]
+#SZ_vals = predict(model_bvol_glob )[datab$group=="SZ"]
 #K_vals = predict(model_bvol_glob )[datab$group=="K"]
+#mean(BP_vals)
+#mean(SZ_vals)
+#mean(K_vals)
+#mean(BP_vals) - mean(K_vals)
+#mean(SZ_vals) - mean(K_vals)
+#ls=lsmeans(model_bvol_glob,pairwise ~ group,adjust="none")
+#ls
 #ttestBF(x=as.numeric(BP_vals), y=as.numeric(K_vals), iterations=1000)
 
 
@@ -955,3 +991,13 @@ bf1 = lmBF(formula = eval(parse(text="BrainTotalVol ~ group + sex + group:sex + 
 #s.p <- sqrt( sum((n - 1) * s^2) / sum(n - 1) ) 
 #s.p / sqrt(n)
 
+
+
+## Something something 
+#library(emmeans)
+#model1 = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex0)
+#emm = emmeans(model1,specs="group")
+#equivalence_test(contrast(emm))
+#library(brms)
+#model <- brms::brm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex0)
+#equivalence_test(model)
