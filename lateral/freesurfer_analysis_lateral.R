@@ -8,10 +8,12 @@ library(gridExtra)
 library(tidyr)
 library(lsmeans)
 library(grid)
-library(ggnewscale)
+#library(ggnewscale)
 library(writexl)
 library(car)
 library(NCmisc)
+library(lsr)
+library(readxl)
 
 
 
@@ -50,19 +52,16 @@ contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/l
 contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_without_glob.xlsx"
 
 
-#####
-# - Plots LSmeans based contrasts which compares BP and SZ to control
+effect_sizes_path = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/ANOVA+contrast_effect_sizes.xlsx"
 
-#save folder for plots:
-save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral"
+plot_save_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral"
 
-#prefix for the plot
-LSmeans_prefix = "LSmean_difference_"
 
 
 ######
 #data path
-data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv"
+#data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv"
+data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220509.csv"
 
 #load data
 data_csv <- read.table(data_path, header = TRUE, sep = ",", dec = ".")
@@ -74,12 +73,17 @@ summary(data_csv)
 
 #filter the data with include variable
 # - extract rows with 1 in Include_FS_studies coloumn
-data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
-data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
+#data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
+#data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
 
 # - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
-data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_excluded == 1),]
-data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_excluded),]
+#data_csv_filtered <- data_csv_filtered[c(data_csv_filtered$Include_FS_studies_euler_outliers_excluded == 1),]
+#data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_excluded),]
+
+# - extract rows with 1 in Include_FS_studies_euler_outliers_sibpairs_out
+data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_sibpairs_out == 1),]
+data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_sibpairs_out),]
+
 
 #rename to a shorter name for convenience
 datab = data_csv_filtered
@@ -87,6 +91,10 @@ datab = data_csv_filtered
 #set working directory for plots to be saved
 setwd("/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral")
 
+
+general_cov = c("age","site","TotalEulerNumber")
+general_cov_formula = paste(general_cov,collapse = "+")
+contrast_signs = c(1,1, -1) # for K/BP/SZ 
 
 
 
@@ -118,32 +126,35 @@ for (i in seq(1,2)){
 #make new variables with shorter and contained names
 # - tell r which variables are factors
 datab$sex = as.factor(datab$Sex_child)
-datab$group = as.factor(datab$HighRiskStatus)
-datab$site = as.factor(datab$MR_Site)
-datab$diag = as.factor(datab$Axis.1_diag_v11)
+datab$group = as.factor(datab$HighRiskStatus_v11)
+datab$site = as.factor(datab$MRI_site_v11)
+datab$diag = as.factor(datab$ksads_any_diag_excl_elim_lft_v11) #Axis.1_diag_v11) 
 datab$age = as.numeric(datab$MRI_age)
 
 #get a separate data frame for each sex
 data_sex1 = datab[c(datab$sex == 1),]
 data_sex0 = datab[c(datab$sex == 0),]
-dataf = list(data_sex0,data_sex1)
+
+
 
 
 ###### Make inference with models
 # generate ANOVA table with GS interaction 
 
 #initialize some variables for referencing
-glob = c("Without global var","With global var")
+glob = c("without_global_var","with_global_var")
 DF = data.frame()
+model_list = list()
+
 
 #loop that 
 for (j in seq(1,3)){
+  for (i in seq(1,2)){
+  print(h[i])
   print(m[j])
   model_yvars = col_names_list[[paste(h[i],m[j],sep = "_")]] 
   
   for (k in seq(1,length(model_yvars))){
-    for (i in seq(1,2)){
-      print(h[i])
       
     for (g in seq(1,2)){
       
@@ -168,9 +179,10 @@ for (j in seq(1,3)){
       }
       
       #run the model
-      model = lm(f,data=datab)
+      model_list[[glob[g]]][[model_yvars[k]]][[h[i]]] = lm(f,data=datab)
+      model = model_list[[glob[g]]][[model_yvars[k]]][[h[i]]]
       xvars = attributes(Anova(model,type = "III"))$row.names
-      
+
       #define the p-value of the group/sex interaction
       pv_group_sex = Anova(model,type = "III")$"Pr(>F)"[xvars=="group:sex"]
       
@@ -200,9 +212,12 @@ for (j in seq(1,3)){
         models = list(model)
       }
       
+      model_list[[glob[g]]][[model_yvars[k]]][[h[i]]] = model
       
       for (mi in seq(1,length(models))){
         mm = models[[mi]]
+        subs = length(mm$residuals)
+        
         group_F = Anova(mm,type = "III")$"F value"[xvars=="group"]
         sex_F = Anova(mm,type = "III")$"F value"[xvars=="sex"]
         age_F = Anova(mm,type = "III")$"F value"[xvars=="age"]
@@ -235,7 +250,7 @@ for (j in seq(1,3)){
                     EulerNumber_F, EulerNumber_pv, 
                     glob_var_F, glob_var_pv, glob_var,
                     GS_F, pv_group_sex,
-                    sign_GS, mi, g-1)
+                    sign_GS, mi, g-1,subs)
         }       
         else{
           rw = list(model_yvars[k], h[i], group_F, group_pv, 
@@ -244,7 +259,7 @@ for (j in seq(1,3)){
                     EulerNumber_F, EulerNumber_pv, 
                     glob_var_F, glob_var_pv, glob_var,
                     NA, NA,
-                    sign_GS, mi-2, g-1)
+                    sign_GS, mi-2, g-1,subs)
         } 
         
         DF = rbindlist(list(DF, rw))
@@ -263,7 +278,7 @@ names(DF)<-c("model_yvar","hemisphere","group_Fval","group_pval",
              "Eulernumber_Fval","Eulernumber_pval",
              "global_var_Fval","global_var_pval", "global_var_name",
              "Group_sex_Fval", "Group_sex_pval",
-             "Significant_GS_interaction", "GS_in_model","global_var_in_model")
+             "Significant_GS_interaction", "GS_in_model","global_var_in_model","n_subs")
 
 
 DF_xlsx_glob0 = DF[DF$global_var_in_model == 0, ]
@@ -280,44 +295,52 @@ write_xlsx(DF_xlsx_glob0,GS_ANOVA_without_glob)
 DF_xlsx = data.frame()
 DFc = data.frame()
 glob = c("without_global_var","with_global_var")
+sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
+dataf = list(data_sex0,data_sex1,datab)
+
+models = list()
 
 
 for (j in seq(1,3)){
+  for (i in seq(1,2)){
+  print(h[i])
   print(m[j])
   model_yvars = col_names_list[[paste(h[i],m[j],sep = "_")]] 
   #model_yvars = unlist(col_names_list[[m[j]]] )
+  
   for (k in seq(1,length(model_yvars))){
-    for (s in seq(1,2)){
-    for (i in seq(1,2)){
-      print(h[i])
+    for (s in seq(1,3)){
     for (g in seq(1,2)){
       
       if (glob[g] == "without_global_var"){
         #no global measure model
         f = paste(model_yvars[k],"~","group","+","age","+","site","+","TotalEulerNumber")
-        model = lm(f,data=dataf[[s]])
-        xvars = attributes(Anova(model,type = "III"))$row.names
-        
+        glob_var = NA 
       }
       else {
         #define model formulation for models with the global variable 
         if (m[j] == "area"){
           glob_var = "total_area"
-          f2 = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
+          f = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
         else if (m[j] == "thickness"){
           glob_var = "mean_thickness"
-          f2 = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
+          f = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
         else if (m[j] == "volume"){
           glob_var = "BrainTotalVol"
-          f2 = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
+          f = paste(model_yvars[k],"~","+","group","+","age","+","site","+","TotalEulerNumber","+",glob_var)
         }
-        #run model and define p-value for interaction
-        model = lm(f2,data=dataf[[s]])
-        xvars = attributes(Anova(model,type = "III"))$row.names
       }
       
+      if (sex[s] == "both"){
+        f = paste(f,"+sex",sep = "")
+      }
+      
+      models[[sex[s]]][[glob[g]]][[model_yvars[k]]][[h[i]]] = lm(f,data=dataf[[s]])
+      model = models[[sex[s]]][[glob[g]]][[model_yvars[k]]][[h[i]]]
+      xvars = attributes(Anova(model,type = "III"))$row.names
+      subs = length(model$residuals)
       
       #use the above defined model_ana 
       ls = lsmeans(model,pairwise~"group",adjust="none")
@@ -380,7 +403,7 @@ for (j in seq(1,3)){
                      age_F, age_pv, site_F, site_pv, 
                      EulerNumber_F, EulerNumber_pv, 
                      glob_var_F, glob_var_pv, glob_var,
-                     g-1,s-1)
+                     g-1,s-1,subs)
       
       DF_xlsx = rbindlist(list(DF_xlsx, rw_xlsx))
       
@@ -403,7 +426,7 @@ names(DF_xlsx)<-c("Model_yvar","hemisphere","Group_Fval","Group_pval",
                   "Age_Fval","Age_pval","Site_Fval","Site_pval",
                   "EulerNumber_Fval","Eulernumber_pval",
                   "global_var_F","global_var_pv","global_var_name",
-                  "global_var_in_model","sex")
+                  "global_var_in_model","sex","n_subs")
 
 DF_glob0 = DF_xlsx[DF_xlsx$global_var_in_model == 0, ]
 DF_glob1 = DF_xlsx[DF_xlsx$global_var_in_model == 1, ]
@@ -419,111 +442,132 @@ write_xlsx(DFc_glob0,contrast_without_glob)
 
 
 
-#LSmeans contrast plot
-
-pivot_cols = c("Contrast_BP-K","Contrast_SZ-K")
-DFp = DFc %>%
-  pivot_longer(cols = pivot_cols,
-               names_to = "diff_group",
-               values_to = "diff_value",
-               values_drop_na = FALSE)
-DFp = as.data.frame(DFp)
-DFp$diff_group[DFp$diff_group == "Contrast_BP-K"] = "BP"
-DFp$diff_group[DFp$diff_group == "Contrast_SZ-K"] = "SZ"
 
 
-pivot_cols_LCL = c("LCL_Contrast_BP-K","LCL_Contrast_SZ-K")
-DF_LCL = DFc %>%
-  pivot_longer(cols = pivot_cols_LCL,
-               names_to = "diff_group_LCL",
-               values_to = "diff_LCL",
-               values_drop_na = FALSE)
 
-pivot_cols_UCL = c("UCL_Contrast_BP-K","UCL_Contrast_SZ-K")
-DF_UCL = DFc %>%
-  pivot_longer(cols = pivot_cols_UCL,
-               names_to = "diff_group_UCL",
-               values_to = "diff_UCL",
-               values_drop_na = FALSE)
-
-DF_CL = data.frame(DF_LCL$diff_group_LCL, DF_LCL$diff_LCL, DF_UCL$diff_UCL)
-names(DF_CL) = c("diff_group_CL","diff_LCL","diff_UCL")
-DFp = cbind(DFp,DF_CL)
-
-DFp$diff_value_P = 100*DFp$diff_value / DFp$K_LSmean
-DFp$diff_LCL_P = 100*DFp$diff_LCL / DFp$K_LSmean
-DFp$diff_UCL_P = 100*DFp$diff_UCL / DFp$K_LSmean
+## Effect sizes
 
 
-#make a new coloumn in the dataframe with a non zero value when the model
-#contrast is significant. The value given is the y-axis position of a star being 
-#drawn indicating significant contrast in the plot below
-#DFp$BP_diff_sig = NA
-#DFp$BP_diff_sig[DFp$BP_diff_pv < 0.05] = -4
-#DFp$SZ_diff_sig = NA
-#DFp$SZ_diff_sig[DFp$SZ_diff_pv < 0.05] = -5
-
-
-#define relevant variables for naming
-groups = c("BP","SZ")
-m = c("area","thickness","volume")
-glob_names = c("Models WITHOUT global var","Models WITH global var")
 glob = c("without_global_var","with_global_var")
+sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
+glob_vars = c("BrainTotalVol","mean_thickness","total_area")
 
-sx = c("female","male")
 
-sp=list()
+DF = data.frame()
 
-for (j in seq(1,3)){ 
-for (g in seq(1,2)){
-for (i in seq(1,2)){  #hemisphere 
-for (s in seq(1,2)){  
-  
-  dfs = DFp[DFp$measure == m[j] & DFp$global_var_in_model == (g-1) & DFp$hemisphere == h[i] & DFp$sex == s-1,]
-  
-  sp[[2*s-2+i]]=ggplot(dfs, aes_string(group="diff_group",color="diff_group", x="Model_yvar", y="diff_value_P")) +
-    labs(x="region",y="Difference from control [%]") +
-    geom_line() + 
-    ggtitle(paste(sx[s],h[i])) + 
-    geom_hline(yintercept = 0) + 
-    geom_errorbar(aes_string(width=0.3,group="diff_group_CL",color="diff_group_CL",ymin="diff_LCL_P", ymax="diff_UCL_P" )) +
-    scale_color_manual("Group", values=c("#0072B2","#0072B2","#009E73", "#009E73"))+
-    
-    geom_point(aes_string(group="diff_group",color="diff_group",x="Model_yvar", y="diff_value_P")) +
-    #geom_point(shape=8, aes_string(group="diff_group",x="model_yvar", y="BP_diff_sig"), color="#0072B2") +
-    #geom_point(shape=8, aes_string(group="diff_group",x="model_yvar", y="SZ_diff_sig"), color="#009E73") +
-    
-    theme(axis.text.x = element_text(color = "black", size = 8, angle = 90)) + 
-    ylim(-10, 10) +
-    annotate("text", x = 8, y = 4,label = "* = Significant uncorrected contrast",family = "", fontface = 3, size=3)+
-  
-    {if (m[j]=="thickness") ylim(-5, 5)}
+#all non-changing variable names in models
+all_var_names = c("group","sex",general_cov, glob_vars, "group:sex")
 
-  #coord_flip()
+
+for (j in seq(1,3)){
+  for (i in seq(1,2)){
+    print(h[i])
+    print(m[j])
+    model_yvars = col_names_list[[paste(h[i],m[j],sep = "_")]]
+for (k in seq(1,length(model_yvars))){
+  for (g in seq(1,length(glob))){
+    for (s in seq(1,length(sex))){
+      
+      if (sex[s] == "both"){
+        model_eff = model_list[[glob[g]]][[model_yvars[k]]][[h[i]]]
+        GS_in_model = ("group:sex" %in% attributes(Anova(model_eff,type = "III"))$row.names)*1
+        model_type = "group + sex"
+        if (GS_in_model == 1){
+          model_type = "group*sex"
+        }
+      }
+      else {
+        model_type = NA
+        model_eff = models[[sex[s]]][[glob[g]]][[model_yvars[k]]][[h[i]]]
+      }
+      
+      GS_in_model = ("group:sex" %in% attributes(Anova(model_eff,type = "III"))$row.names)*1
+      
+      
+      #get model terms 
+      xvars = attributes(etaSquared(model_eff, type = 3, anova = T))$dimnames[[1]]
+      
+      #get etaSquared outputs
+      yvars = attributes(etaSquared(model_eff, type = 3, anova = T))$dimnames[[2]]
+      
+      eta_vals = as.numeric(etaSquared(model_eff, type = 3, anova = T)[,yvars="eta.sq.part"])
+      
+      all_col_names = all_var_names
+      
+      var_idx = all_col_names %in% xvars
+      var_idx2 = xvars %in% all_col_names
+      row = rep(NA,length(all_col_names))
+      xt = xvars[var_idx2]
+      at = all_col_names[var_idx]
+      et = eta_vals[var_idx2]
+      row[var_idx] = et[sapply(at, function(x) { grep(paste("^",x,"$", sep=""), xt)})]
+      
+      
+      #cohens D for contrasts
+      emm_eff = emmeans(model_eff,specs="group")
+      effs = eff_size(emm_eff, sigma=sigma(model_eff), edf=df.residual(model_eff))
+      
+      contrast_names = attributes(effs)$levels$contrast
+      c_eff_vals = rep(NA,length(contrast_names))
+      
+      for (cc in seq(1,length(contrast_names))){
+        c_eff_vals[cc] = contrast_signs[cc]*summary(effs)$effect.size[cc]
+      }
+      
+      #rows for effect size xlsx table
+      DF = rbindlist(list(DF, as.list(c(model_yvars[k],m[j],h[i],row,
+                                        c_eff_vals,
+                                        g-1,GS_in_model,sex[s],model_type))))
+      
+      
+    } #end s
+  } #end g
+} #end k
+} #end i
+} #end j
+paES_col_names = paste(all_var_names, "_par_eta_sq",sep="")
+
+
+#flip the order of contrast names are defined if the sign is flipped
+contrast_names = attributes(c)$levels$contrast
+
+for (cn in seq(1,length(contrast_names))){
+  if (contrast_signs[cn]<0){
+    contrast_names[cn]=paste(strsplit(contrast_names[cn], split = " - ")[[1]][2],strsplit(contrast_names[cn], split = " - ")[[1]][1],sep = " - ")
+  }    
 } 
-}
+
+c_cols = expand.grid(c("CohensD"), contrast_names)
+c_cols = paste(c_cols$Var1, c_cols$Var2,sep = "_")
+c_cols = gsub(" ", "", c_cols)
 
 
-top_title = paste("Lateral LSmean difference from control:",m[j],glob_names[g])
-ps=grid.arrange(grobs=sp, top=textGrob(top_title,gp=gpar(fontsize=20)))
-ggsave(paste(LSmeans_prefix,m[j],glob[g],".png",sep=""),ps,width = 15,height = 10)
+names(DF) = c("model_yvar","measure","hemisphere",paES_col_names,
+              c_cols,
+              "globvar_in_model","GS_in_model","sex","model_type")
 
-} #g
-} #j
-
+write_xlsx(DF,effect_sizes_path)
 
 
-#sanity checks 
-model2 = lm(rh_inferiorparietal_volume ~ group*sex + age + TotalEulerNumber + site, data=datab)
+
+
+
+
+
+
+
+###   sanity checks 
+model2 = lm(lh_inferiorparietal_volume ~ group*sex + age + TotalEulerNumber + site + BrainTotalVol, data=datab)
 #model_IPvol = update(model_IPvol,~.-group:sex)
 Anova(model2,type="III")
 
-model0 = lm(lh_inferiorparietal_volume ~ group + age + TotalEulerNumber + site, data=data_sex0)
+model0 = lm(lh_inferiorparietal_volume ~ group + age + TotalEulerNumber + site + BrainTotalVol, data=data_sex0)
 model1 = lm(lh_inferiorparietal_volume ~ group + age + TotalEulerNumber + site, data=data_sex1)
 Anova(model0,type="III")
 Anova(model1,type="III")
 
 lsmeans(model0,pairwise~"group",adjust="none")
+
 
 
 
