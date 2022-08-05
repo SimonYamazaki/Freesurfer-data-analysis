@@ -326,7 +326,7 @@ for (i in seq(1,length(model_vars))){
         ICV_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
         ICV_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
         
-        #sex
+        #glob
         bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
         bf2 = lmBF(formula = eval(parse(text=gsub("\\+eICV_samseg", "",mf))), data=datab)
         bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)

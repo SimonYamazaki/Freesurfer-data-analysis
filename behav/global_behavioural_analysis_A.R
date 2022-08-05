@@ -37,6 +37,9 @@ A_model_ANOVA_without_glob= "globvar_ANOVA_pvals_without_glob.xlsx"
 A_effect_sizes_path = "ANOVA_effect_sizes.xlsx"
 
 
+bf_iterations = 10000
+
+
 #data path
 data_path = "/mnt/projects/VIA11/FREESURFER/Stats/Data/VIA11_allkey_160621_FreeSurfer_pruned_20220509.csv"
 
@@ -131,14 +134,14 @@ for (k in seq(1,length(model_vars))){
       
       
       for (gg in seq(1,2)){
-        f = paste(model_vars[k],"~",beh,"+",general_cov_formula)
+        f = paste(model_vars[k],"~+",beh,"+",general_cov_formula,sep="")
         
         if (glob[gg] == "with_eICV"){ #run models without ICV
-          f = paste(f,"+ eICV_samseg")
+          f = paste(f,"+eICV_samseg",sep = "")
         }
         
         if (sex[ss] == "both"){ #define a specific model for the case of both sex
-          f = paste(f,"+ sex")
+          f = paste(f,"+sex",sep = "")
         }
         
         #run the model
@@ -152,6 +155,43 @@ for (k in seq(1,length(model_vars))){
         
         #ANOVA sex separated
         mm=model_ana
+        subs = length(mm$residuals)
+        
+        ############### Bayes Factor analysis 
+        #behav
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub(paste("\\+",beh,sep=""), "",mf))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_behav = as.numeric(bf_res[1])
+        bf_behav_error = as.numeric(bf_res[2])
+        
+        # age
+        bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+age", "",f))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_age = as.numeric(bf_res[1])
+        bf_age_error = as.numeric(bf_res[2])
+        
+        # Eulernumer
+        bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+TotalEulerNumber", "",f))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_euler = as.numeric(bf_res[1])
+        bf_euler_error = as.numeric(bf_res[2])
+        
+        #Site
+        bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+site", "",f))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_site = as.numeric(bf_res[1])
+        bf_site_error = as.numeric(bf_res[2])
+        
+        
+        ############# BF above 
         
         behav_F = Anova(mm,type = "III")$"F value"[xvars==beh]
         age_F = Anova(mm,type = "III")$"F value"[xvars=="age"]
@@ -173,15 +213,34 @@ for (k in seq(1,length(model_vars))){
           glob_var_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
           glob_var_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
           
+          #glob
+          bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
+          bf2 = lmBF(formula = eval(parse(text=gsub("\\+eICV_samseg", "",f))), data=datab)
+          bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+          bf_glob = as.numeric(bf_res[1])
+          bf_glob_error = as.numeric(bf_res[2])
         } 
         
         if (sex[ss] == "both"){
           sex_F = Anova(mm,type = "III")$"F value"[xvars=="sex"]
           sex_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="sex"]
+          
+          #sex
+          bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
+          bf2 = lmBF(formula = eval(parse(text=gsub("\\+sex", "",f))), data=datab)
+          bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+          bf_sex = as.numeric(bf_res[1])
+          bf_sex_error = as.numeric(bf_res[2])
+          
         }
         else {
           sex_F = NA
           sex_pv = NA
+          
+          bf_sex = NA
+          bf_sex_error = NA
         }
         
         model_type = "no groups"
@@ -189,12 +248,14 @@ for (k in seq(1,length(model_vars))){
         
         #rows for ANOVA xlsx table
         rw_xlsx = list(model_vars[k], beh, 
-                       sex_F, sex_pv,
-                       age_F, age_pv, site_F, site_pv, 
-                       EulerNumber_F, EulerNumber_pv, 
-                       behav_F, behav_pv,
-                       glob_var_F, glob_var_pv, "eICV_samseg",
-                       gg-1,ss-1,model_type)
+                       sex_F, sex_pv, bf_sex, bf_sex_error,
+                       age_F, age_pv, bf_age, bf_age_error,
+                       site_F, site_pv, bf_site, bf_site_error,
+                       EulerNumber_F, EulerNumber_pv, bf_euler, bf_euler_error,
+                       behav_F, behav_pv, bf_behav, bf_behav_error,
+                       glob_var_F, glob_var_pv, bf_glob, bf_glob_error,
+                       "eICV_samseg",
+                       gg-1,ss-1,model_type,subs)
         
         DF_xlsx = rbindlist(list(DF_xlsx, rw_xlsx))
         
@@ -204,12 +265,14 @@ for (k in seq(1,length(model_vars))){
 } #model_vars
 
 names(DF_xlsx)<-c("Model_yvar","Behav_var",
-                  "Sex_Fval","Sex_pval",
-                  "Age_Fval","Age_pval","Site_Fval","Site_pval",
-                  "EulerNumber_Fval","Eulernumber_pval",
-                  "Behav_Fval","Behav_pval",
-                  "global_var_F","global_var_pv","global_var_name",
-                  "global_var_in_model","sex","model_type")
+                  "Sex_Fval","Sex_pval", "Sex_bf", "Sex_bf_error",
+                  "Age_Fval","Age_pval", "Age_bf", "Age_bf_error",
+                  "Site_Fval","Site_pval", "Site_bf", "Site_bf_error",
+                  "EulerNumber_Fval","Eulernumber_pval", "Eulernumber_bf", "Eulernumber_bf_error",
+                  "Behav_Fval","Behav_pval","Behav_bf", "Behav_bf_error",
+                  "global_var_F","global_var_pv", "global_var_bf", "global_var_bf_error",
+                  "global_var_name",
+                  "global_var_in_model","sex","model_type","n_subs")
 
 
 DF_xlsx_glob0 = DF_xlsx[DF_xlsx$global_var_in_model == 0, ]
