@@ -190,59 +190,66 @@ m = c("area","thickness","volume")
 sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
 glob = c("without_global_var","with_global_var")
 hemi = c("left","right")
+contrast = c("BP-K", "SZ-K")
+
 side = c("inside","outside","outside","inside")
-camera = list()#c("left lateral","right lateral")
+camera = list()
 camera[[1]] = list(camera = list(eye = list(x = 2, y = 0, z = 0)))
 camera[[2]] = list(camera = list(eye = list(x = -2, y = 0, z = 0)))
-
-# %>% hide_colorbar()
-
 
 plots2save = list()
 pls = list()
 
-eff_table <-  read_excel(effect_sizes_path)
 
-all_cohensd = as.numeric(rbind(eff_table$`CohensD_BP-K`, eff_table$`CohensD_SZ-K`))
-
-max_cohens_D = max(all_cohensd)
-min_cohens_D = min(all_cohensd)
-
-j = 3 #measure
-#ss = 1 #sex 
-gg = 1 #global variable 
-contrast = "BP-K"
-
-
-
-for (ss in seq(1,2)){
-  
-#FDR correct p-values 
+#load and prepare contrast table
 contrast_table_with_glob <-  read_excel(contrast_with_glob)
 contrast_table_without_glob <-  read_excel(contrast_without_glob)
 contrast_table = rbind(contrast_table_with_glob, contrast_table_without_glob)
 
-ctable_both_hemi_sex <- contrast_table[c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),]
+#load effect size table 
+eff_table <-  read_excel(effect_sizes_path)
 
-contrast_pval_coloumn = paste("pval_",contrast,sep="")
-raw_pvals = as.numeric(ctable_both_hemi_sex[[contrast_pval_coloumn]])
+#find biggest and smallest effect sizes
+all_cohensd = as.numeric(rbind(eff_table$`CohensD_BP-K`, eff_table$`CohensD_SZ-K`))
+max_cohens_D = max(all_cohensd)
+min_cohens_D = min(all_cohensd)
 
+
+#j = 3 #measure
+#gg = 1 #global variable 
+#contrast = "SZ-K"
+
+for (cc in seq(1,2)){
+  contrast_table[paste("fdr_pvals_",contrast[cc],sep="")] = NA
+  
+for (j in seq(1,3)){
+for (gg in seq(1,2)){
+for (ss in seq(1,2)){
+  
+#FDR correct p-values 
+contrast_pval_coloumn = paste("pval_",contrast[cc],sep="")
+raw_pvals <- contrast_table[c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),][[contrast_pval_coloumn]]
 fdr_pvals = p.adjust(raw_pvals, method = "fdr", n = length(raw_pvals))
+contrast_table[paste("fdr_pvals_",contrast[cc],sep="")][c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),] = fdr_pvals
 
-ctable_both_hemi_sex[paste("fdr_pvals_",contrast,sep="")] = fdr_pvals
+#ctable_both_hemi_sex <- contrast_table[c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),]
+#contrast_pval_coloumn = paste("pval_",contrast,sep="")
+#raw_pvals = as.numeric(ctable_both_hemi_sex[[contrast_pval_coloumn]])
+#fdr_pvals = p.adjust(raw_pvals, method = "fdr", n = length(raw_pvals))
+#ctable_both_hemi_sex[paste("fdr_pvals_",contrast,sep="")] = fdr_pvals
 
 
 for (i in seq(1,2)){ #hemisphere
   
   table_sex <- eff_table[c(eff_table$hemisphere == h[i] & eff_table$measure == m[j] & eff_table$sex == sex[ss] & eff_table$globvar_in_model == gg-1),]
   
-  contrast_coloumn = paste("CohensD_",contrast,sep="")
+  contrast_coloumn = paste("CohensD_",contrast[cc],sep="")
   cohensd = as.numeric(table_sex[[contrast_coloumn]])
   
-  corrected_contrast_pval = ctable_both_hemi_sex[paste("fdr_pvals_",contrast,sep="")][c(ctable_both_hemi_sex$hemisphere == h[i]),]
+  corrected_contrast_pval = contrast_table[paste("fdr_pvals_",contrast[cc],sep="")][c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1 & contrast_table$hemisphere == h[i]),]
 
   if ( any(as.numeric(unlist(corrected_contrast_pval)) < 0.05) ){
-    significant_regions = ctable_both_hemi_sex[c(ctable_both_hemi_sex$hemisphere == h[i]),][as.numeric(unlist(corrected_contrast_pval)) < 0.05,]$Model_yvar
+    significant_regions = contrast_table[c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1 & contrast_table$hemisphere == h[i]),][as.numeric(unlist(corrected_contrast_pval)) < 0.05,]$Model_yvar
   }  else {
     significant_regions = ""
   }
@@ -269,19 +276,18 @@ for (i in seq(1,2)){ #hemisphere
                                                                      surface = "inflated",
                                                                      hemisphere = c(hemi[i]),
                                                                      palette = c("#0000ff"=min_cohens_D, "#ffffff"=0,"#ff0000"=max_cohens_D),
-                                                                     options.legend=list(tickfont=list(size=25),title=list(text="Cohens D"))) %>%
+                                                                     options.legend=list(tickfont=list(size=25),tickvals = c(-0.6,-0.4,-0.2,0, 0.2,0.4, 0.6),title=list(text="Cohens D"))) %>%
       #pan_camera(camera[k]) %>%
       layout(scene = camera[[k]]) %>% 
-      remove_axes() #%>%
-      #add_annotations(text = paste(m[j],contrast,"for",h[i],"of",sex[ss],glob[gg]),
-      #                y = 1,
-      #                yanchor = 'top',
-      #                legendtitle = TRUE, showarrow = FALSE,
-      #                font = list(family = 'sans serif',size = 20))
-  
-    plots2save[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]] = paste(paste("cohensd","brain",h[i],side[kk],sex[ss],sep="_"),".png",sep="")# "cohensd_brain_lh_inside_male.png"
-    txt2save = paste(paste("significant","regions",h[i],side[kk],sex[ss],sep="_"),"_1.txt",sep="")#"significant_regions_lh_inside_male.txt"
-  
+      remove_axes() %>% 
+      hide_colorbar()
+
+    #plots2save[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]] = paste(paste("cohensd","brain",h[i],side[kk],sex[ss],sep="_"),".png",sep="")# "cohensd_brain_lh_inside_male.png"
+    
+    img_path = paste("/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/",paste("cohensd",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],sep="_"),".png",sep="")
+    #plotly_IMAGE(pls[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]], width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
+    
+    txt2save = paste("significant","regions",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],".txt",sep="_")#"significant_regions_lh_inside_male.txt"
     fileConn<-file(txt2save)
     writeLines(significant_regions, fileConn)
     close(fileConn)  
@@ -290,60 +296,85 @@ for (i in seq(1,2)){ #hemisphere
 } #end hemisphere
 } #sex
 
-#these are in the same order as plot2save
-orca(pls[["lh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]], plots2save[["lh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]])
-orca(pls[["lh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]], plots2save[["lh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]])
-orca(pls[["rh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]], plots2save[["rh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]])
-orca(pls[["rh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]], plots2save[["rh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]])
+} #c 
+} #g
+} #j
 
-orca(pls[["lh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]], plots2save[["lh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]])
-orca(pls[["lh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]], plots2save[["lh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]])
-orca(pls[["rh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]], plots2save[["rh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]])
-orca(pls[["rh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]], plots2save[["rh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]])
+#get high resolution colorbar
+brain_colorbar <- ggseg3d(.data = someData,
+                          atlas = dk_3d,
+                          colour = "p", text = "p",
+                          surface = "inflated",
+                          hemisphere = c(hemi[i]),
+                          palette = c("#0000ff"=min_cohens_D, "#ffffff"=0,"#ff0000"=max_cohens_D),
+                          options.legend=list(tickfont=list(size=25),tickvals = c(-0.6,-0.4,-0.2,0, 0.2,0.4, 0.6),title=list(text="Cohens D"))) %>%
+  layout(scene = camera[[k]]) %>% 
+  remove_axes()
+
+img_path = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/brain_colorbar.png"
+#plotly_IMAGE(brain_colorbar, width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
+
+
+contrast_fdr_table = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/lateral_combined_contrasts.xlsx"
+write_xlsx(contrast_table,contrast_fdr_table)
+
+#https://chart-studio.plotly.com/settings/api#/
+#https://plotly.com/r/reference/layout/coloraxis/
+
+#these are in the same order as plot2save
+#orca(pls[["lh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]], plots2save[["lh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]])
+#orca(pls[["lh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]], plots2save[["lh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]])
+#orca(pls[["rh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]], plots2save[["rh"]][[m[j]]][["female"]][[glob[gg]]][["inside"]])
+#orca(pls[["rh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]], plots2save[["rh"]][[m[j]]][["female"]][[glob[gg]]][["outside"]])
+
+#orca(pls[["lh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]], plots2save[["lh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]])
+#orca(pls[["lh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]], plots2save[["lh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]])
+#orca(pls[["rh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]], plots2save[["rh"]][[m[j]]][["male"]][[glob[gg]]][["inside"]])
+#orca(pls[["rh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]], plots2save[["rh"]][[m[j]]][["male"]][[glob[gg]]][["outside"]])
 #https://github.com/plotly/orca#installation
 
-plots= list()
-for (kk in seq(1,length(unlist(plots2save)))){
-  plots[[kk]] <- readPNG(paste(plot_save_dir,"/",str_split(unlist(plots2save)[kk],".png")[[1]][1],"_1.png",sep=""))
-} 
+#plots= list()
+#for (kk in seq(1,length(unlist(plots2save)))){
+#  plots[[kk]] <- readPNG(paste(plot_save_dir,"/",str_split(unlist(plots2save)[kk],".png")[[1]][1],"_1.png",sep=""))
+#} 
 
 
-top_title = paste(m[j],contrast,"contrast for models",glob[gg])
+#top_title = paste(m[j],contrast,"contrast for models",glob[gg])
 
 #ONLY RUN THIS WHEN ALL THE ORCA HAVE FINISHED
-png(paste(m[j],"_","brains_combined_zoom","_",contrast,"_",glob[gg],"_",".png",sep=""),width = 2000, height = 1200,)
-print( 
-  grid.arrange(rasterGrob(plots[[1]]),
-               rasterGrob(plots[[2]]),
-               rasterGrob(plots[[5]]),
-               rasterGrob(plots[[6]]), 
-               rasterGrob(plots[[3]]),
-               rasterGrob(plots[[4]]),
-               rasterGrob(plots[[7]]),
-               rasterGrob(plots[[8]]),
-               ncol=4,
+#png(paste(m[j],"_","brains_combined_zoom","_",contrast,"_",glob[gg],"_",".png",sep=""),width = 2000, height = 1200,)
+#print( 
+#  grid.arrange(rasterGrob(plots[[1]]),
+#               rasterGrob(plots[[2]]),
+#               rasterGrob(plots[[5]]),
+#               rasterGrob(plots[[6]]), 
+#               rasterGrob(plots[[3]]),
+#               rasterGrob(plots[[4]]),
+#               rasterGrob(plots[[7]]),
+#               rasterGrob(plots[[8]]),
+#               ncol=4,
                #bottom = "Something something",
-               top=textGrob(top_title,gp=gpar(fontsize=20)))
-)
+#               top=textGrob(top_title,gp=gpar(fontsize=20)))
+#)
 
-grid.text("Female", x = unit(0.5, "npc"), 
-          y = unit(.9, "npc"),gp = gpar(fontsize=30))
-grid.text("Male", x = unit(0.5, "npc"), 
-          y = unit(.4, "npc"),gp = gpar(fontsize=30))#, fontfamily="Times New Roman"))
-
-
-grid.text("Left                                                                                                                                                                                         Right", x = unit(0.5, "npc"), 
-          y = unit(.1, "npc"),gp = gpar(fontsize=20))
-grid.text("Hemisphere", x = unit(0.5, "npc"), 
-          y = unit(.07, "npc"),gp = gpar(fontsize=20))#, fontfamily="Times New Roman"))
+#grid.text("Female", x = unit(0.5, "npc"), 
+#          y = unit(.9, "npc"),gp = gpar(fontsize=30))
+#grid.text("Male", x = unit(0.5, "npc"), 
+#          y = unit(.4, "npc"),gp = gpar(fontsize=30))#, fontfamily="Times New Roman"))
 
 
-grid.text("Left                                                                                                                                                                                         Right", x = unit(0.5, "npc"), 
-          y = unit(.6, "npc"),gp = gpar(fontsize=20))
-grid.text("Hemisphere", x = unit(0.5, "npc"), 
-          y = unit(.57, "npc"),gp = gpar(fontsize=20))#, fontfamily="Times New Roman"))
+#grid.text("Left                                                                                                                                                                                         Right", x = unit(0.5, "npc"), 
+#          y = unit(.1, "npc"),gp = gpar(fontsize=20))
+#grid.text("Hemisphere", x = unit(0.5, "npc"), 
+#          y = unit(.07, "npc"),gp = gpar(fontsize=20))#, fontfamily="Times New Roman"))
 
-dev.off()
+
+#grid.text("Left                                                                                                                                                                                         Right", x = unit(0.5, "npc"), 
+#          y = unit(.6, "npc"),gp = gpar(fontsize=20))
+#grid.text("Hemisphere", x = unit(0.5, "npc"), 
+#          y = unit(.57, "npc"),gp = gpar(fontsize=20))#, fontfamily="Times New Roman"))
+
+#dev.off()
 
 
 
@@ -445,13 +476,13 @@ contrast_table_with_glob <-  read_excel(contrast_with_glob)
 contrast_table_without_glob <-  read_excel(contrast_without_glob)
 contrast_table = rbind(contrast_table_with_glob, contrast_table_without_glob)
 ctable_both_hemi_sex <- contrast_table[c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),]
-contrast_pval_coloumn = paste("pval_",contrast,sep="")
+contrast_pval_coloumn = paste("pval_",contrast[cc],sep="")
 raw_pvals = as.numeric(ctable_both_hemi_sex[[contrast_pval_coloumn]])
 fdr_pvals = p.adjust(raw_pvals, method = "fdr", n = length(raw_pvals))
-ctable_both_hemi_sex[paste("fdr_pvals_",contrast,sep="")] = fdr_pvals
+ctable_both_hemi_sex[paste("fdr_pvals_",contrast[cc],sep="")] = fdr_pvals
 table_sex <- eff_table[c(eff_table$hemisphere == h[i] & eff_table$measure == m[j] & eff_table$sex == sex[ss] & eff_table$globvar_in_model == gg-1),]
 
-corrected_contrast_pval = ctable_both_hemi_sex[paste("fdr_pvals_",contrast,sep="")][c(ctable_both_hemi_sex$hemisphere == h[i]),]
+corrected_contrast_pval = ctable_both_hemi_sex[paste("fdr_pvals_",contrast[cc],sep="")][c(ctable_both_hemi_sex$hemisphere == h[i]),]
 corrected_contrast_pval
 #sex 0
 #rh_caudalmiddlefrontal_area

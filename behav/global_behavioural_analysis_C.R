@@ -89,6 +89,7 @@ datab$sexs[datab$sexs == 0] = "female"
 datab$sexs[datab$sexs == 1] = "male"
 
 
+bf_iterations = 10000
 
 
 ###### for loop that generates tables of global brain measure as y-variable 
@@ -104,10 +105,7 @@ behav_vars = c("CBCL_ext_cg_v11","CBCL_int_cg_v11","CBCL_totsc_cg_v11","CGASx_v1
 general_cov = c("age","site","TotalEulerNumber")
 general_cov_formula = paste(general_cov,collapse = " + ")
 
-
 contrast_signs = c(1,1, -1) # for K/BP/SZ 
-
-
 
 
 
@@ -134,10 +132,10 @@ for (i in seq(1,length(model_vars))){
     
     #model formulas WITHOUT behav
     if (glob[g] == "with_eICV"){
-      f = paste(model_vars[i],"~","+","group*sex","+",general_cov_formula,"+","eICV_samseg") #model with ICV
+      f = paste(model_vars[i],"~","+group+sex+group:sex","+",general_cov_formula,"+","eICV_samseg",sep="") #model with ICV
     }
     else{
-      f = paste(model_vars[i],"~","+","group*sex","+",general_cov_formula) #model without ICV
+      f = paste(model_vars[i],"~","+group+sex+group:sex","+",general_cov_formula,sep="") #model without ICV
     }
     
     #loop that adds and analyze models WITH behav
@@ -145,7 +143,7 @@ for (i in seq(1,length(model_vars))){
       print(behav_vars[b])
       
       beh = behav_vars[b]
-      ff = paste(f,"+",beh,"*group")
+      ff = paste(f,"+",beh,"+","group","+","group:",beh,sep="")
       
       #run the actual model
       model_behav = lm(ff,data=datab)
@@ -157,6 +155,22 @@ for (i in seq(1,length(model_vars))){
       
       GB_F = Anova(model_behav,type = "III")$"F value"[xvars==paste("group:",beh,sep="")]
       GB_pv = Anova(model_behav,type = "III")$"Pr(>F)"[xvars==paste("group:",beh,sep="")]
+      
+      #Group/sex BF
+      bf1 = lmBF(formula = eval(parse(text=ff)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=gsub("\\+group:sex", "",ff))), data=datab)
+            bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_gs = as.numeric(bf_res[1])
+      bf_gs_error = as.numeric(bf_res[2])
+      
+      #Group/behav BF
+      bf1 = lmBF(formula = eval(parse(text=ff)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=gsub(paste("\\+group:",beh,sep=""), "",ff))), data=datab)
+      bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_gb = as.numeric(bf_res[1])
+      bf_gb_error = as.numeric(bf_res[2])
       
       
       #if the group/sex interaction is insignificant
@@ -171,6 +185,7 @@ for (i in seq(1,length(model_vars))){
         
         models = list(model_gs, model_behav)
         model_type = list("GS+GB","GB")
+        model_formula = list(ff, gsub("\\+group:sex", "",ff))
         
       }
       else{    #if the group/sex interaction is significant - just keep the model
@@ -178,6 +193,7 @@ for (i in seq(1,length(model_vars))){
         sign_GS = 1
         models = list(model_behav)
         model_type = list("GS+GB")
+        model_formula = list(ff)
       }
       
       
@@ -195,9 +211,11 @@ for (i in seq(1,length(model_vars))){
         
         if (sign_GS == 1){        
           model_type = list.append(model_type, "GS")
+          model_formula = list.append(model_formula, gsub(paste("\\+group:",beh,sep=""), "",ff))
         }
         else{          
           model_type = list.append(model_type, "No_interactions")
+          model_formula = list.append(model_formula, gsub("\\+group:sex"), "",f)
         }
       }
       else{    #if the group/sex interaction is significant 
@@ -213,6 +231,8 @@ for (i in seq(1,length(model_vars))){
       
       for (m in seq(1,length(models))){
         mm = models[[m]]
+        mf = model_formula[[m]]
+        
         xvars = attributes(Anova(mm,type = "III"))$row.names
         
         #extract relevant statistics for each variable in the model 
@@ -230,19 +250,81 @@ for (i in seq(1,length(model_vars))){
         site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
         EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
         
+        
+        ## Bayes factor analysis
+        #behav
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub(paste("\\+",beh,sep=""), "",mf))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_behav = as.numeric(bf_res[1])
+        bf_behav_error = as.numeric(bf_res[2])
+        
+        #group
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+group", "",mf))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_g = as.numeric(bf_res[1])
+        bf_g_error = as.numeric(bf_res[2])
+        
+        # age
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+age", "",mf))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_age = as.numeric(bf_res[1])
+        bf_age_error = as.numeric(bf_res[2])
+        
+        # Eulernumer
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+TotalEulerNumber", "",mf))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_euler = as.numeric(bf_res[1])
+        bf_euler_error = as.numeric(bf_res[2])
+        
+        #Site
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+site", "",mf))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_site = as.numeric(bf_res[1])
+        bf_site_error = as.numeric(bf_res[2])
+        
+        #sex
+        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+sex", "",mf))), data=datab)
+        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+        bf_sex = as.numeric(bf_res[1])
+        bf_sex_error = as.numeric(bf_res[2])
+        
+        
+        
         #if the model includes ICV, then also define the anova statistics of ICV
         if (glob[g] == "with_eICV"){
           ICV_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
           ICV_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
+          
+          #glob
+          bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+          bf2 = lmBF(formula = eval(parse(text=gsub("\\+eICV_samseg", "",mf))), data=datab)
+          bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+          bf_glob = as.numeric(bf_res[1])
+          bf_glob_error = as.numeric(bf_res[2])
         }
         else{ #else, dont define them if the model is without ICV
           ICV_F = NA
           ICV_pv = NA
+          bf_glob = NA
+          bf_glob_error = NA
         }   
         
         subs = length(model_behav$residuals)
         
-        #the first index in m is always the model with a group/sex and group/behav interaction
+        #update stats depending on the type of model
         if (model_type[[m]]=="GS+GB"){
           GB_in = 1
           GS_in = 1
@@ -252,22 +334,46 @@ for (i in seq(1,length(model_vars))){
           GB_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars==paste("group:",beh,sep="")]
           GS_F = NA
           GS_pv = NA
+          bf_gs = NA
+          bf_gs_error = NA
           GB_in = 1
           GS_in = 0
+          
+          #Group/behav BF
+          bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+          bf2 = lmBF(formula = eval(parse(text=gsub(paste("\\+group:",beh,sep=""), "",mf))), data=datab)
+          bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+          bf_gb = as.numeric(bf_res[1])
+          bf_gb_error = as.numeric(bf_res[2])
         }
         else if (model_type[[m]]=="GS"){ #the model does not include group/behav interaction
           GB_F = NA
           GB_pv = NA
+          bf_gb = NA
+          bf_gb_error = NA
           GS_F = Anova(mm,type = "III")$"F value"[xvars=="group:sex"]
           GS_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="group:sex"]
           GB_in = 0
           GS_in = 1
+          
+          #Group/sex BF
+          bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+          bf2 = lmBF(formula = eval(parse(text=gsub("\\+group:sex", "",mf))), data=datab)
+          bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+          bf_gs = as.numeric(bf_res[1])
+          bf_gs_error = as.numeric(bf_res[2])
         }
         else if (model_type[[m]]=="No_interactions"){ #if m is 3 then the model is does not include group/sex and group/behav interaction
           GB_F = NA
           GB_pv = NA
           GS_F = NA
           GS_pv = NA
+          bf_gs = NA
+          bf_gs_error = NA
+          bf_gb = NA
+          bf_gb_error = NA
           GB_in = 0
           GS_in = 0
         }
@@ -277,12 +383,16 @@ for (i in seq(1,length(model_vars))){
         #append the row to the dataframe 
         #DF = rbindlist(list(DF, rw))
         DF = rbindlist(list(DF, as.list(c(model_vars[i], beh,
-                                          group_F, group_pv, sex_F, sex_pv,
-                                          age_F, age_pv, site_F, site_pv, 
-                                          EulerNumber_F, EulerNumber_pv, 
-                                          ICV_F, ICV_pv, behav_F, behav_pv,
+                                          group_F, group_pv, bf_g, bf_g_error,
+                                          sex_F, sex_pv, bf_sex, bf_sex_error,
+                                          age_F, age_pv, bf_age, bf_age_error,
+                                          site_F, site_pv, bf_site, bf_site_error,
+                                          EulerNumber_F, EulerNumber_pv, bf_euler, bf_euler_error,
+                                          ICV_F, ICV_pv, bf_glob, bf_glob_error,
+                                          behav_F, behav_pv, bf_behav, bf_behav_error,
                                           
-                                          GB_F, GB_pv, GS_F, GS_pv, 
+                                          GB_F, GB_pv, bf_gb, bf_gb_error,
+                                          GS_F, GS_pv, bf_gs, bf_gs_error,
                                           sign_GB,sign_GS,GB_in,GS_in, 
                                           
                                           g-1,model_type[[m]],subs))))
@@ -296,11 +406,15 @@ for (i in seq(1,length(model_vars))){
 
 #define the coloum names of the dataframe which is converted to an excel 
 col_names = c("Model_yvar", "behav_var",
-              "Group_Fval","Group_pval","Sex_Fval","Sex_pval",
-              "Age_Fval","Age_pval","Site_Fval","Site_pval",
-              "EulerNumber_Fval","Eulernumber_pval",
-              "ICV_Fval","ICV_pval","behav_Fval","behav_pval",
-              "group_behav_Fval","group_behav_pval","Group_sex_Fval","Group_sex_pval",
+              "Group_Fval","Group_pval","Group_bf","Gruop_bf_error",
+              "Sex_Fval","Sex_pval","Sex_bf", "Sex_bf_error",
+              "Age_Fval","Age_pval","Age_bf", "Age_bf_error",
+              "Site_Fval","Site_pval","Site_bf", "Site_bf_error",
+              "EulerNumber_Fval","Eulernumber_pval", "Eulernumber_bf", "Eulernumber_bf_error",
+              "ICV_Fval","ICV_pval","ICV_bf", "ICV_bf_error",
+              "behav_Fval","behav_pval", "behav_bf", "behav_bf_error",
+              "group_behav_Fval","group_behav_pval", "group_behav_bf", "group_behav_bf_error",
+              "Group_sex_Fval","Group_sex_pval", "Group_sex_bf", "Group_sex_bf_error",
               "Significant_GB_interaction","Significant_GS_interaction","GB_in_model","GS_in_model",
               "ICV_in_model","model_type","n_subjects")
 
@@ -402,7 +516,19 @@ for (k in seq(1,length(model_vars))){
           diff_LCL = contrast_signs[cc]*confint(c)$lower.CL[cc]
           diff_UCL = contrast_signs[cc]*confint(c)$upper.CL[cc]
           
+          cgroup1 = str_split(contrast_names[cc]," - ")[[1]][1]
+          cgroup2 = str_split(contrast_names[cc]," - ")[[1]][2]
+          df_cgroups_sex = df_sex[df_sex$group==cgroup1 | df_sex$group==cgroup2,]
+          
+          bf1 = lmBF(formula = eval(parse(text=f)), data=df_cgroups_sex)
+          bf2 = lmBF(formula = eval(parse(text=gsub("\\+group", "",f))), data=df_cgroups_sex)
+          bf = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+          bf_contrast = as.numeric(bf_res[1])
+          bf_contrast_error = as.numeric(bf_res[2])
+          
           rwc_xlsx = append(rwc_xlsx,list(diff, diff_tratio, diff_pv,
+                                          bf_contrast,bf_contrast_error,
                                           diff_LCL,diff_UCL))
           
         }
@@ -424,26 +550,89 @@ for (k in seq(1,length(model_vars))){
         site_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="site"]
         EulerNumber_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="TotalEulerNumber"]
         
+        
+        ### Bayes Factor analysis 
+        
+        #behav BF
+        bf1 = lmBF(formula = eval(parse(text=f)), data=df_sex)
+        bf2 = lmBF(formula = eval(parse(text=gsub(paste("\\+",beh,sep=""), "",f))), data=df_sex)
+        bf = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+        bf_behav = as.numeric(bf_res[1])
+        bf_behav_error = as.numeric(bf_res[2])
+        
+        #group BF
+        bf1 = lmBF(formula = eval(parse(text=f)), data=df_sex)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+group", "",f))), data=df_sex)
+        bf = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+        bf_group = as.numeric(bf_res[1])
+        bf_group_error = as.numeric(bf_res[2])
+        
+        #age BF
+        bf1 = lmBF(formula = eval(parse(text=f)), data=df_sex)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+age", "",f))), data=df_sex)
+        bf = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+        bf_age = as.numeric(bf_res[1])
+        bf_age_error = as.numeric(bf_res[2])
+        
+        #site BF
+        bf1 = lmBF(formula = eval(parse(text=f)), data=df_sex)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+site", "",f))), data=df_sex)
+        bf = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+        bf_site = as.numeric(bf_res[1])
+        bf_site_error = as.numeric(bf_res[2])
+        
+        #euler BF
+        bf1 = lmBF(formula = eval(parse(text=f)), data=df_sex)
+        bf2 = lmBF(formula = eval(parse(text=gsub("\\+TotalEulerNumber", "",f))), data=df_sex)
+        bf = recompute(bf1 / bf2, iterations = bf_iterations)
+        bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+        bf_euler = as.numeric(bf_res[1])
+        bf_euler_error = as.numeric(bf_res[2])
+        
+        
         if (glob[gg] == "without_eICV"){
           #no global measure model
           glob_var_F = NA
           glob_var_pv = NA
+          bf_glob = NA
+          bf_glob_error = NA
         }       
         else{
           #global measure model
           glob_var_F = Anova(mm,type = "III")$"F value"[xvars=="eICV_samseg"]
           glob_var_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="eICV_samseg"]
           
+          #glob BF
+          bf1 = lmBF(formula = eval(parse(text=f)), data=df_sex)
+          bf2 = lmBF(formula = eval(parse(text=gsub("\\+eICV_samseg", "",f))), data=df_sex)
+          bf = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+          bf_glob = as.numeric(bf_res[1])
+          bf_glob_error = as.numeric(bf_res[2])
         } 
         
         if (sex[ss] == "both"){
           sex_F = Anova(mm,type = "III")$"F value"[xvars=="sex"]
           sex_pv = Anova(mm,type = "III")$"Pr(>F)"[xvars=="sex"]
           model_type = "group + sex"
+          
+          #sex BF
+          bf1 = lmBF(formula = eval(parse(text=f)), data=df_sex)
+          bf2 = lmBF(formula = eval(parse(text=gsub("\\+sex", "",f))), data=df_sex)
+          bf = recompute(bf1 / bf2, iterations = bf_iterations)
+          bf_res = extractBF(bf, logbf = FALSE, onlybf = FALSE)
+          bf_sex = as.numeric(bf_res[1])
+          bf_sex_error = as.numeric(bf_res[2])
         }
         else {
           sex_F = NA
           sex_pv = NA
+          bf_sex = NA
+          bf_sex_error = NA
           model_type = "group"
         }
         
@@ -453,11 +642,14 @@ for (k in seq(1,length(model_vars))){
         
         #rows for ANOVA xlsx table
         rw_xlsx = list(model_vars[k], beh, 
-                       group_F, group_pv, sex_F, sex_pv,
-                       age_F, age_pv, site_F, site_pv, 
-                       EulerNumber_F, EulerNumber_pv, 
-                       behav_F, behav_pv,
-                       glob_var_F, glob_var_pv, "eICV_samseg",
+                       group_F, group_pv, bf_group, bf_group_error,
+                       sex_F, sex_pv, bf_sex, bf_sex_error,
+                       age_F, age_pv, bf_age, bf_age_error,
+                       site_F, site_pv, bf_site, bf_site_error,
+                       EulerNumber_F, EulerNumber_pv, bf_euler, bf_euler_error,
+                       behav_F, behav_pv, bf_behav, bf_behav_error,
+                       glob_var_F, glob_var_pv, bf_glob, bf_glob_error,
+                       "eICV_samseg",
                        gg-1,ss-1,model_type)
         
         DF_xlsx = rbindlist(list(DF_xlsx, rw_xlsx))
@@ -468,11 +660,14 @@ for (k in seq(1,length(model_vars))){
 } #model_vars
 
 names(DF_xlsx)<-c("Model_yvar","Behav_var",
-                  "Group_Fval","Group_pval","Sex_Fval","Sex_pval",
-                  "Age_Fval","Age_pval","Site_Fval","Site_pval",
-                  "EulerNumber_Fval","Eulernumber_pval",
-                  "Behav_Fval","Behav_pval",
-                  "global_var_F","global_var_pv","global_var_name",
+                  "Group_Fval","Group_pval","Group_bf", "Group_bf_error",
+                  "Sex_Fval","Sex_pval","Sex_bf", "Sex_bf_error",
+                  "Age_Fval","Age_pval","Age_bf", "Age_bf_error",
+                  "Site_Fval","Site_pval", "Site_bf", "Site_bf_error",
+                  "EulerNumber_Fval","Eulernumber_pval", "Eulernumber_bf", "Eulernumber_bf_error",
+                  "Behav_Fval","Behav_pval","Behav_bf", "Behav_bf_error",
+                  "global_var_F","global_var_pv","global_var_bf", "global_bf_error",
+                  "global_var_name",
                   "global_var_in_model","sex","model_type")
 
 
@@ -485,11 +680,11 @@ for (cn in seq(1,length(contrast_names))){
   }    
 }  
 
-c_cols = expand.grid(c("contrast","t-ratio","pval","LCL","UCL"), contrast_names)
+c_cols = expand.grid(c("contrast","t-ratio","pval","BF","BF_error","LCL","UCL"), contrast_names)
 c_cols = paste(c_cols$Var1, c_cols$Var2,sep = "_")
 c_cols = gsub(" ", "", c_cols)
 
-group_lsmeans = paste("LSmean_",group_levels)
+group_lsmeans = paste("LSmean_",group_levels,sep = "")
 
 #same excel saving procedure as above 
 col_names = c("Model_yvar", group_lsmeans, c_cols,

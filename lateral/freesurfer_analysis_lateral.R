@@ -119,6 +119,7 @@ for (i in seq(1,2)){
     col_names_list[[name]] = col_names_list[[name]][grepl(paste("^",h[i],sep = ""), col_names_list[[name]])]
     col_names_list[[name]] = col_names_list[[name]][grepl(paste(m[j],'$',sep = ""), col_names_list[[name]])]
     col_names_list[[name]] = col_names_list[[name]][!grepl(paste("Area_area",'$',sep = ""), col_names_list[[name]])] #remove WhiteSurfaceArea
+    col_names_list[[name]] = col_names_list[[name]][!grepl(paste("MeanThickness_thickness",'$',sep = ""), col_names_list[[name]])] #remove WhiteSurfaceArea
     model_names = c(model_names, col_names_list[[name]])
   }
 }

@@ -3,18 +3,16 @@
 #load packages
 library(data.table)
 library(ggplot2)
-library(ggdist)
 library(gridExtra)
-library(tidyr)
 library(lsmeans)
 library(grid)
-library(ggnewscale)
 library(writexl)
 library(car)
-library(NCmisc)
 library(BayesFactor)
 library(stringr)
 library(lsr)
+
+#funchir::stale_package_check('/mrhome/simonyj/Freesurfer-data-analysis/global_measures/global_measures_generalized.R')
 
 #This script is intended for computation of statistics on global brain measures
 #in multiple groups and comparing to a control group. The script generates:
@@ -23,7 +21,7 @@ library(lsr)
 #####
 # - ANOVA tables with models that include a group/sex interaction 
 #   an extra row of a model without the interaction is included if it turned out insignificant
-#   saved in an excel sheet with a covariate and an excel sheet without
+#   saved in an excel sheet with results from models with covariate and an excel sheet without
 
 #save paths:
 GS_ANOVA_with_cov = "globvar_GS_ANOVA_pvals_with_glob.xlsx"
@@ -54,7 +52,7 @@ ppwp_postfix = "_group_diff_pvalues_ICV"
 #what data should the models be run for 
 run_group = "BP_axis1" #choose from "K_BP_SZ", "BP_axis1", "SZ_axis1"
 siblings = FALSE #if siblings should be included 
-bf_iterations = 100000
+bf_iterations = 100000 #number of posterior samples used to compute bayesfactor
 
 
 #data path
@@ -177,7 +175,7 @@ general_cov_formula = paste(general_cov,collapse = "+")
 
 ### run models with eICV_samseg as covariate and without
 # generate ANOVA tables with group/sex interaction
-# each row is a model 
+# each row is a modelin saved excel
 
 #which global variables to model and compute statistics for
 model_vars = y_vars
@@ -193,7 +191,7 @@ DF = data.frame()
 
 #loop that defines models 
 for (i in seq(1,length(model_vars))){
-  if (model_vars[i] == "eICV_samseg"){    #only run models without_eICV for the model on eICV_samseg
+  if (model_vars[i] == "eICV_samseg"){    #only run models without_eICV for the model with eICV as response variable
     glob = c("without_eICV")
   }
   else{
@@ -201,20 +199,28 @@ for (i in seq(1,length(model_vars))){
   }
   
   for (g in seq(1,length(glob))){
+    
+    #define model formulas
+    f_without_gs = paste(model_vars[i],"~","+group+sex","+",general_cov_formula,sep="")
+    f = paste(f,"+group:sex",sep="")
+    
+    #add global variable 
     if (glob[g] == "with_eICV"){
-      f = paste(model_vars[i],"~","+group+sex+group:sex","+",general_cov_formula,"+","eICV_samseg",sep="") #model with ICV
-      f_without_gs = paste(model_vars[i],"~","+","group+sex","+",general_cov_formula,"+","eICV_samseg",sep="") #model with ICV
-    }
-    else{
-      f = paste(model_vars[i],"~","+group+sex+group:sex","+",general_cov_formula,sep="") #model without ICV
-      f_without_gs = paste(model_vars[i],"~","+","group+sex","+",general_cov_formula,sep="") #model with ICV
+      f = paste(f,"+eICV_samseg",sep="")
+      f_without_gs = paste(f,"+eICV_samseg",sep="")
     }
     
     #run the actual model
     model[[glob[g]]][[model_vars[i]]] = lm(f,data=datab)  
     
+    #save the anova F and p-value for the group/sex interaction
+    GS_pv = Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"Pr(>F)"[xvars=="group:sex"]
+    GS_F = Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"F value"[xvars=="group:sex"]
+    
     #extract the variables that are modelling the global variable
     xvars = attributes(Anova(model[[glob[g]]][[model_vars[i]]],type = "III"))$row.names
+    
+    
     
     #if the group/sex interaction is insignificant 
     if (Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"Pr(>F)"[xvars=="group:sex"] > 0.05){
@@ -223,10 +229,6 @@ for (i in seq(1,length(model_vars))){
       
       #save the model with group/sex interaction included
       model_gs = model[[glob[g]]][[model_vars[i]]]
-      
-      #save the anova F and p-value for the group/sex interaction
-      GS_pvals = Anova(model_gs,type = "III")$"Pr(>F)"[xvars=="group:sex"]
-      GS_F = Anova(model_gs,type = "III")$"F value"[xvars=="group:sex"]
       
       #save the model without the group/sex interaction
       model[[glob[g]]][[model_vars[i]]] = update(model[[glob[g]]][[model_vars[i]]],~.-group:sex)
@@ -241,10 +243,6 @@ for (i in seq(1,length(model_vars))){
       
       #indicate the significance of the group/sex interation
       sign_GS = 1
-      
-      #save the anova F and p-value for the group/sex interaction
-      GS_pv = Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"Pr(>F)"[xvars=="group:sex"]
-      GS_F = Anova(model[[glob[g]]][[model_vars[i]]],type = "III")$"F value"[xvars=="group:sex"]
       
       #save the model with the group/sex interaction
       models = list(model[[glob[g]]][[model_vars[i]]])
@@ -276,6 +274,7 @@ for (i in seq(1,length(model_vars))){
       
 
       ############### Bayes Factor analysis 
+      # for each variable in model
       
       #group
       bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
@@ -317,6 +316,14 @@ for (i in seq(1,length(model_vars))){
       bf_sex = as.numeric(bf_res[1])
       bf_sex_error = as.numeric(bf_res[2])
       
+      #Group/sex BF
+      bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
+      bf2 = lmBF(formula = eval(parse(text=f_without_gs)), data=datab)
+      bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
+      bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
+      bf_gs = as.numeric(bf_res[1])
+      bf_gs_error = as.numeric(bf_res[2])
+      
       ############# BF above 
       
       
@@ -341,18 +348,9 @@ for (i in seq(1,length(model_vars))){
         bf_glob_error = NA
       }       
       
-      #the first index in m is always the model with a group/sex interaction
+      #if the model is with group/sex interaction 
       if (model_type[[m]]=="GS"){
         GS_in = 1
-        
-        #Group/sex BF
-        bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
-        bf2 = lmBF(formula = eval(parse(text=f_without_gs)), data=datab)
-        bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
-        bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
-        bf_gs = as.numeric(bf_res[1])
-        bf_gs_error = as.numeric(bf_res[2])
-        
       }
       else if (model_type[[m]]=="No_interactions"){ 
         GS_F = NA

@@ -159,7 +159,7 @@ for (k in seq(1,length(model_vars))){
         
         ############### Bayes Factor analysis 
         #behav
-        bf1 = lmBF(formula = eval(parse(text=mf)), data=datab)
+        bf1 = lmBF(formula = eval(parse(text=f)), data=datab)
         bf2 = lmBF(formula = eval(parse(text=gsub(paste("\\+",beh,sep=""), "",mf))), data=datab)
         bf_interaction = recompute(bf1 / bf2, iterations = bf_iterations)
         bf_res = extractBF(bf_interaction, logbf = FALSE, onlybf = FALSE)
