@@ -346,6 +346,8 @@ for (j in seq(1,3)){
       #use the above defined model_ana 
       ls = lsmeans(model,pairwise~"group",adjust="none")
       c = ls$contrasts
+      diff_df = attributes(c)$dfargs$df
+      
       BP_emm = summary(ls)$lsmeans$lsmean[1]
       K_emm = summary(ls)$lsmeans$lsmean[2]
       SZ_emm = summary(ls)$lsmeans$lsmean[3]
@@ -370,7 +372,7 @@ for (j in seq(1,3)){
                       BP_diff_LCL, BP_diff_UCL,
                       SZ_diff,SZ_diff_tratio,SZ_diff_pv,
                       SZ_diff_LCL, SZ_diff_UCL,
-                      g-1,s-1,h[i])
+                      diff_df,g-1,s-1,h[i])
       
       DFc = rbindlist(list(DFc, rwc))
       
@@ -421,7 +423,7 @@ names(DFc) = c("Model_yvar","measure","BP_LSmean","K_LSmean","SZ_LSmean",
                     "LCL_Contrast_BP-K", "UCL_Contrast_BP-K",
                     "Contrast_SZ-K","tratio_SZ-K","pval_SZ-K",
                     "LCL_Contrast_SZ-K", "UCL_Contrast_SZ-K",
-                    "global_var_in_model","sex","hemisphere")
+                    "DOF_ttest","global_var_in_model","sex","hemisphere")
 
 names(DF_xlsx)<-c("Model_yvar","hemisphere","Group_Fval","Group_pval",
                   "Age_Fval","Age_pval","Site_Fval","Site_pval",

@@ -50,7 +50,7 @@ ppwp_postfix = "_group_diff_pvalues_ICV"
 
 
 #what data should the models be run for 
-run_group = "BP_axis1" #choose from "K_BP_SZ", "BP_axis1", "SZ_axis1"
+run_group = "K_BP_SZ" #choose from "K_BP_SZ", "BP_axis1", "SZ_axis1"
 siblings = FALSE #if siblings should be included 
 bf_iterations = 100000 #number of posterior samples used to compute bayesfactor
 
@@ -518,8 +518,8 @@ for (k in seq(1,length(model_vars))){
                                         diff_LCL,diff_UCL))
 
       }
-      
-      rwc_xlsx = append(rwc_xlsx,list(gg-1,ss-1))
+      diff_df = attributes(c)$dfargs$df
+      rwc_xlsx = append(rwc_xlsx,list(diff_df,gg-1,ss-1))
       DFc = rbindlist(list(DFc, rwc_xlsx))
       
       if (sex[ss] != "both"){
@@ -631,7 +631,7 @@ group_lsmeans = paste("LSmean_",group_levels,sep = "")
 
 #same excel saving procedure as above 
 col_names = c("Model_yvar", group_lsmeans, c_cols,
-              "global_var_in_model","sex")
+              "ttest_DOF","global_var_in_model","sex")
 names(DFc)<-col_names
 
 
@@ -832,7 +832,15 @@ write_xlsx(DF,effect_sizes_path)
 
 
 
-### Testing area  #### 
+###############################################################################
+
+#####                           Testing area                              ##### 
+
+
+#             EVERYTHING BELOW IS ONLY FOR VALIDATION OF METHODS              #
+
+###############################################################################
+
 
 model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site, data=datab) #eICV_samseg
 Anova(model_bvol_glob,type="III")
@@ -840,6 +848,8 @@ lsmeans(model_bvol_glob,pairwise ~ group)
 
 model_bvol_glob2 = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex0) #eICV_samseg
 Anova(model_bvol_glob2,type="III")
+attributes(lsmeans(model_bvol_glob2,pairwise ~ group)$contrasts)$dfargs$df
+
 
 model_bvol_glob2 = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_sex1) #eICV_samseg
 Anova(model_bvol_glob2,type="III")

@@ -14,6 +14,10 @@ library(lsr)
 library(readxl)
 library(ggseg3d)
 
+
+Sys.setenv("plotly_username" = "simonyj")
+Sys.setenv("plotly_api_key" = "Fjx0xgvDeX23Z2DBu49P")
+
 #save paths:
 contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_with_glob.xlsx"
 contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_without_glob.xlsx"
@@ -190,7 +194,7 @@ m = c("area","thickness","volume")
 sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
 glob = c("without_global_var","with_global_var")
 hemi = c("left","right")
-contrast = c("BP-K", "SZ-K")
+contrast = c("BP-K", "SZ-K") #"SZ-K"#
 
 side = c("inside","outside","outside","inside")
 camera = list()
@@ -231,13 +235,6 @@ contrast_pval_coloumn = paste("pval_",contrast[cc],sep="")
 raw_pvals <- contrast_table[c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),][[contrast_pval_coloumn]]
 fdr_pvals = p.adjust(raw_pvals, method = "fdr", n = length(raw_pvals))
 contrast_table[paste("fdr_pvals_",contrast[cc],sep="")][c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),] = fdr_pvals
-
-#ctable_both_hemi_sex <- contrast_table[c(contrast_table$measure == m[j] & contrast_table$sex == ss-1 & contrast_table$global_var_in_model == gg-1),]
-#contrast_pval_coloumn = paste("pval_",contrast,sep="")
-#raw_pvals = as.numeric(ctable_both_hemi_sex[[contrast_pval_coloumn]])
-#fdr_pvals = p.adjust(raw_pvals, method = "fdr", n = length(raw_pvals))
-#ctable_both_hemi_sex[paste("fdr_pvals_",contrast,sep="")] = fdr_pvals
-
 
 for (i in seq(1,2)){ #hemisphere
   
@@ -284,13 +281,13 @@ for (i in seq(1,2)){ #hemisphere
 
     #plots2save[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]] = paste(paste("cohensd","brain",h[i],side[kk],sex[ss],sep="_"),".png",sep="")# "cohensd_brain_lh_inside_male.png"
     
-    img_path = paste("/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/",paste("cohensd",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],sep="_"),".png",sep="")
+    img_path = paste("/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/intermediate_plots/",paste("cohensd",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],sep="_"),".png",sep="")
     #plotly_IMAGE(pls[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]], width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
     
-    txt2save = paste("significant","regions",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],".txt",sep="_")#"significant_regions_lh_inside_male.txt"
-    fileConn<-file(txt2save)
-    writeLines(significant_regions, fileConn)
-    close(fileConn)  
+    txt2save = paste("intermediate_plots/significant","regions",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],".txt",sep="_")#"significant_regions_lh_inside_male.txt"
+    #fileConn<-file(txt2save)
+    #writeLines(significant_regions, fileConn)
+    #close(fileConn)  
     
   } #end side
 } #end hemisphere
@@ -311,12 +308,13 @@ brain_colorbar <- ggseg3d(.data = someData,
   layout(scene = camera[[k]]) %>% 
   remove_axes()
 
-img_path = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/brain_colorbar.png"
+img_path = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/intermediate_plots/brain_colorbar.png"
 #plotly_IMAGE(brain_colorbar, width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
 
 
 contrast_fdr_table = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/lateral_combined_contrasts.xlsx"
 write_xlsx(contrast_table,contrast_fdr_table)
+
 
 #https://chart-studio.plotly.com/settings/api#/
 #https://plotly.com/r/reference/layout/coloraxis/
