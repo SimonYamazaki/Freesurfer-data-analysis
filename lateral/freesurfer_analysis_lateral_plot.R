@@ -308,8 +308,8 @@ brain_colorbar <- ggseg3d(.data = someData,
   layout(scene = camera[[k]]) %>% 
   remove_axes()
 
-img_path = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/intermediate_plots/brain_colorbar.png"
-#plotly_IMAGE(brain_colorbar, width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
+img_path = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/final_plots/brain_colorbar.png"
+plotly_IMAGE(brain_colorbar, width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
 
 
 contrast_fdr_table = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/lateral_combined_contrasts.xlsx"
