@@ -16,33 +16,39 @@ import seaborn as sns
 #from pcntoolkit.utils import create_bspline_basis, compute_MSLL
 import pcntoolkit as pcn
 
-#%%
+import os 
 
-trainX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/trainX.txt'
-trainY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/trainY.txt'
+#%%
+save_data_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/data/"
+gpr_out_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/GPR/"
+working_dir = gpr_out_dir
+os.chdir(working_dir)
+
+trainX_path = save_data_dir + "trainX.txt"
+trainY_path = save_data_dir + "trainY.txt"
 trainX = pd.read_csv(trainX_path,sep=' ') 
 trainY = pd.read_csv(trainY_path,sep=' ') 
 
-testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/testX.txt'
-testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/testY.txt'
+testX_path = save_data_dir + "testX.txt"
+testY_path = save_data_dir + "testY.txt"
 testX = pd.read_csv(testX_path,sep=' ') 
 testY = pd.read_csv(testY_path,sep=' ') 
 
 
-K_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/KtestX.txt'
-K_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/KtestY.txt'
+K_testX_path = save_data_dir + "KtestX.txt"
+K_testY_path = save_data_dir + "KtestY.txt"
 K_testX = pd.read_csv(K_testX_path,sep=' ') 
 K_testY = pd.read_csv(K_testY_path,sep=' ') 
 
 
-SZBP_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_testX.txt'
-SZBP_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_KtestY.txt'
+SZBP_testX_path = save_data_dir + "SZBP_testX.txt"
+SZBP_testY_path = save_data_dir + "SZBP_testY.txt"
 SZBP_testX = pd.read_csv(SZBP_testX_path,sep=' ') 
 SZBP_testY = pd.read_csv(SZBP_testY_path,sep=' ') 
 
 
-SZBP_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_testX_HRS.txt'
-SZBP_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_testY_HRS.txt'
+SZBP_testX_path = save_data_dir + "SZBP_testX_HRS.txt"
+SZBP_testY_path = save_data_dir + "SZBP_testY_HRS.txt"
 SZBP_testX_HRS = pd.read_csv(SZBP_testX_path,sep=' ') 
 SZBP_testY_HRS = pd.read_csv(SZBP_testY_path,sep=' ') 
 
@@ -158,8 +164,7 @@ import sklearn
 
 
 # set this path to wherever your ROI_models folder is located (where you copied all of the covariate & response text files to in Step 4)
-data_dir = '/home/simonyj/GPR'
-os.makedirs(data_dir, exist_ok=True)
+os.makedirs(gpr_out_dir, exist_ok=True)
 
 file_suffix = ["train","test","val","BPSZ","BP","SZ","forward"]
 
@@ -172,30 +177,33 @@ Y_files = [Y_norm, testY_norm, valY_norm, test2Y_norm, testBPY_norm, testSZY_nor
 for X,Y,suf in zip(X_files,Y_files,file_suffix):
 
     if suf != "forward":
-        resp_file = os.path.join(data_dir, f"resp_{suf}.txt")
+        resp_file = os.path.join(gpr_out_dir, f"resp_{suf}.txt")
         np.savetxt(resp_file, Y)
     
-    cov_file = os.path.join(data_dir, f"cov_gpr_{suf}.txt")
+    cov_file = os.path.join(gpr_out_dir, f"cov_gpr_{suf}.txt")
     np.savetxt(cov_file, X)
     
 
-cov_file_tr = os.path.join(data_dir, 'cov_gpr_train.txt')
-cov_file_te = os.path.join(data_dir, 'cov_gpr_test.txt')
-cov_file_val = os.path.join(data_dir, 'cov_gpr_val.txt')
-cov_file_forward = os.path.join(data_dir, 'cov_gpr_forward.txt')
-cov_file_BPSZ = os.path.join(data_dir, 'cov_gpr_BPSZ.txt')
-cov_file_BP = os.path.join(data_dir, 'cov_gpr_BP.txt')
-cov_file_SZ = os.path.join(data_dir, 'cov_gpr_SZ.txt')
+# save the file paths as string variables
+cov_file_tr = os.path.join(gpr_out_dir, 'cov_gpr_train.txt')
+cov_file_te = os.path.join(gpr_out_dir, 'cov_gpr_test.txt')
+cov_file_val = os.path.join(gpr_out_dir, 'cov_gpr_val.txt')
+cov_file_forward = os.path.join(gpr_out_dir, 'cov_gpr_forward.txt')
+cov_file_BPSZ = os.path.join(gpr_out_dir, 'cov_gpr_BPSZ.txt')
+cov_file_BP = os.path.join(gpr_out_dir, 'cov_gpr_BP.txt')
+cov_file_SZ = os.path.join(gpr_out_dir, 'cov_gpr_SZ.txt')
 
 
-resp_file_tr = os.path.join(data_dir, 'resp_train.txt')
-resp_file_te = os.path.join(data_dir, 'resp_test.txt')
-resp_file_val = os.path.join(data_dir, 'resp_val.txt')
-resp_file_BPSZ = os.path.join(data_dir, 'resp_BPSZ.txt')
-resp_file_BP = os.path.join(data_dir, 'resp_BP.txt')
-resp_file_SZ = os.path.join(data_dir, 'resp_SZ.txt')
+resp_file_tr = os.path.join(gpr_out_dir, 'resp_train.txt')
+resp_file_te = os.path.join(gpr_out_dir, 'resp_test.txt')
+resp_file_val = os.path.join(gpr_out_dir, 'resp_val.txt')
+resp_file_BPSZ = os.path.join(gpr_out_dir, 'resp_BPSZ.txt')
+resp_file_BP = os.path.join(gpr_out_dir, 'resp_BP.txt')
+resp_file_SZ = os.path.join(gpr_out_dir, 'resp_SZ.txt')
 
 
+
+# All these functions saves in the current working dir
 
 # run a model on all test
 yhat_val, s2_val, nm, Z_val, metrics_val = pcn.normative.estimate(covfile = cov_file_tr,
@@ -275,8 +283,8 @@ pcn.normative.estimate(covfile = cov_file_tr,
 
 #%% 
 
-yhat = pd.read_csv('/home/simonyj/yhat_gpr2dtest.txt', sep = ' ', header=None).to_numpy()
-ys2 = pd.read_csv('/home/simonyj/ys2_gpr2dtest.txt', sep = ' ', header=None).to_numpy()
+yhat = pd.read_csv(working_dir + 'yhat_gpr2dtest.txt', sep = ' ', header=None).to_numpy()
+ys2 = pd.read_csv(working_dir + 'ys2_gpr2dtest.txt', sep = ' ', header=None).to_numpy()
 
 sd = np.sqrt(ys2)
 
@@ -336,7 +344,7 @@ ax.set_ylabel("Brain Volume")
 ax.legend()
 
 
-plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/GP_model_plot.png')
+plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/figures/GP_model_plot.png')
 
 #%%
 
@@ -379,7 +387,7 @@ fig.suptitle('GP based Z-scores of test groups',fontsize=15)
 #Z[ts, nz[i]] = (Ytest - Yhat[ts, nz[i]]) / np.sqrt(S2[ts, nz[i]]) 
 #dobbelttjek evt med den BLR model du har
 
-plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/GP_Z_scores_plot.png')
+plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/figures/GP_Z_scores_plot.png')
 
 
 
@@ -445,7 +453,7 @@ fig.suptitle('GP based Z-scores of test groups',fontsize=15)
 #Z[ts, nz[i]] = (Ytest - Yhat[ts, nz[i]]) / np.sqrt(S2[ts, nz[i]]) 
 #dobbelttjek evt med den BLR model du har
 
-plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/custum_GP_Z_scores_plot.png')
+plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/figures/custum_GP_Z_scores_plot.png')
 
 
 

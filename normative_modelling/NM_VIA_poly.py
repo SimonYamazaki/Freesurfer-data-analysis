@@ -16,29 +16,35 @@ import seaborn as sns
 #from pcntoolkit.normative import estimate, evaluate
 #from pcntoolkit.utils import create_bspline_basis, compute_MSLL
 import pcntoolkit as pcn
+import os 
 
 
 #%%
 
-trainX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/trainX.txt'
-trainY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/trainY.txt'
+save_data_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/data/"
+blr_out_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/BLR/"
+working_dir = blr_out_dir
+os.chdir(working_dir)
+
+trainX_path = save_data_dir + "trainX.txt"
+trainY_path = save_data_dir + "trainY.txt"
 trainX = pd.read_csv(trainX_path,sep=' ') 
 trainY = pd.read_csv(trainY_path,sep=' ') 
 
-testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/testX.txt'
-testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/testY.txt'
+testX_path = save_data_dir + "testX.txt"
+testY_path = save_data_dir + "testY.txt"
 testX = pd.read_csv(testX_path,sep=' ') 
 testY = pd.read_csv(testY_path,sep=' ') 
 
 
-K_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/KtestX.txt'
-K_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/KtestY.txt'
+K_testX_path = save_data_dir + "KtestX.txt"
+K_testY_path = save_data_dir + "KtestY.txt"
 K_testX = pd.read_csv(K_testX_path,sep=' ') 
 K_testY = pd.read_csv(K_testY_path,sep=' ') 
 
 
-SZBP_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_testX.txt'
-SZBP_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_KtestY.txt'
+SZBP_testX_path = save_data_dir + "SZBP_testX.txt"
+SZBP_testY_path = save_data_dir + "SZBP_testY.txt"
 SZBP_testX = pd.read_csv(SZBP_testX_path,sep=' ') 
 SZBP_testY = pd.read_csv(SZBP_testY_path,sep=' ') 
 
@@ -46,19 +52,15 @@ SZBP_testY = pd.read_csv(SZBP_testY_path,sep=' ')
 
 #%% load data into the right format
 
-trainX_model_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/train_covariate_normsample.txt'
-trainY_model_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/train_y_normsample.txt'
+trainX_model_path = save_data_dir + "train_covariate_normsample.txt"
+trainY_model_path = save_data_dir + "train_y_normsample.txt"
 trainX_model = trainX.iloc[:,1:]
 trainY_model = trainY[['eICV_samseg']]
-#trainX_model.to_csv(trainX_model_path,sep = ' ',header = False,index = False)
-#trainY_model.to_csv(trainY_model_path,sep = ' ',header = False,index = False)
 
-testX_model_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/test_covariate_normsample.txt'
-testY_model_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/test_y_normsample.txt'
+testX_model_path = save_data_dir + "test_covariate_normsample.txt"
+testY_model_path = save_data_dir + "test_y_normsample.txt"
 testX_model = testX.iloc[:,1:]
 testY_model = testY[['eICV_samseg']]
-#testX_model.to_csv(testX_model_path,sep = ' ',header = False,index = False)
-#testY_model.to_csv(testY_model_path,sep = ' ',header = False,index = False)
 
 
 #only BP and SZ test data
@@ -86,7 +88,7 @@ x_euler = np.array([[euler_mean]]).repeat(n_vals,1).T
 X_forward = np.hstack( [x_age, x_diag, x_site, x_sex, x_euler] )
 
 #normalize X
-X_norm_forward = train_scaler.transform(X_forward)
+#X_norm_forward = train_scaler.transform(X_forward)
 
 
 
@@ -97,8 +99,7 @@ import sklearn
 
 
 # set this path to wherever your ROI_models folder is located (where you copied all of the covariate & response text files to in Step 4)
-data_dir = '/home/simonyj/BLR'
-os.makedirs(data_dir, exist_ok=True)
+os.makedirs(blr_out_dir, exist_ok=True)
 
 file_suffix = ["train","test","val","BPSZ","forward"]
 
@@ -116,13 +117,13 @@ for X,Y,suf in zip(X_files,Y_files,file_suffix):
 
     # load train & test response files
     if suf != "forward":
-        resp_file = os.path.join(data_dir, f"resp_{suf}.txt")
+        resp_file = os.path.join(blr_out_dir, f"resp_{suf}.txt")
         np.savetxt(resp_file, Y)
     
     #Phi = create_poly_basis(X[:,0],dimpoly=2)
     X_poly = PF.fit_transform(X)
     
-    cov_file = os.path.join(data_dir, f"cov_poly_{suf}.txt")
+    cov_file = os.path.join(blr_out_dir, f"cov_poly_{suf}.txt")
     np.savetxt(cov_file, X_poly)
     
     # add intercept column
@@ -137,17 +138,17 @@ for X,Y,suf in zip(X_files,Y_files,file_suffix):
     #np.savetxt(cov_file, X_spline)
 
 
-cov_file_tr = os.path.join(data_dir, 'cov_poly_train.txt')
-cov_file_te = os.path.join(data_dir, 'cov_poly_test.txt')
-cov_file_val = os.path.join(data_dir, 'cov_poly_val.txt')
-cov_file_BPSZ = os.path.join(data_dir, 'cov_poly_BPSZ.txt')
-cov_file_forward = os.path.join(data_dir, 'cov_poly_forward.txt')
+cov_file_tr = os.path.join(blr_out_dir, 'cov_poly_train.txt')
+cov_file_te = os.path.join(blr_out_dir, 'cov_poly_test.txt')
+cov_file_val = os.path.join(blr_out_dir, 'cov_poly_val.txt')
+cov_file_BPSZ = os.path.join(blr_out_dir, 'cov_poly_BPSZ.txt')
+cov_file_forward = os.path.join(blr_out_dir, 'cov_poly_forward.txt')
 
 
-resp_file_tr = os.path.join(data_dir, 'resp_train.txt')
-resp_file_te = os.path.join(data_dir, 'resp_test.txt')
-resp_file_val = os.path.join(data_dir, 'resp_val.txt')
-resp_file_BPSZ = os.path.join(data_dir, 'resp_BPSZ.txt')
+resp_file_tr = os.path.join(blr_out_dir, 'resp_train.txt')
+resp_file_te = os.path.join(blr_out_dir, 'resp_test.txt')
+resp_file_val = os.path.join(blr_out_dir, 'resp_val.txt')
+resp_file_BPSZ = os.path.join(blr_out_dir, 'resp_BPSZ.txt')
 
 
 #run forward model
@@ -192,8 +193,8 @@ yhat_te, s2_te, nm, Z_BPSZ, metrics_te = pcn.normative.estimate(cov_file_tr,
 
 #%% 
 
-yhat = pd.read_csv('/home/simonyj/yhat_forwardblr.txt', sep = ' ', header=None).to_numpy()
-ys2 = pd.read_csv('/home/simonyj/ys2_forwardblr.txt', sep = ' ', header=None).to_numpy()
+yhat = pd.read_csv(working_dir + 'yhat_forwardblr.txt', sep = ' ', header=None).to_numpy()
+ys2 = pd.read_csv(working_dir + 'ys2_forwardblr.txt', sep = ' ', header=None).to_numpy()
 
 sd = np.sqrt(ys2)
 
@@ -245,7 +246,7 @@ ax.set_ylabel("Brain Volume")
 ax.legend()
 
 
-plt.savefig(f"/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/BLR_order{poly_order}_model_plot.png")
+plt.savefig(f"/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/figures/BLR_order{poly_order}_model_plot.png")
 
 
 
@@ -266,5 +267,5 @@ ax.set_title("Validation group (only control)")
 fig.suptitle(f"Polynomial BLR (order {poly_order}) Z-scores of test groups",fontsize=15)
 
 
-plt.savefig(f"/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/BLR_order{poly_order}_Z_scores_plot.png")
+plt.savefig(f"/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/figures/BLR_order{poly_order}_Z_scores_plot.png")
 

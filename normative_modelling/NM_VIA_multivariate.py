@@ -22,42 +22,48 @@ from sklearn.preprocessing import StandardScaler
 
 #%%
 
-m_trainY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/m_trainY.txt'
-m_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/m_testY.txt'
+save_data_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/data/"
+mgpr_out_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/GPR_multivariate/"
+working_dir = mgpr_out_dir
+os.chdir(working_dir)
+
+
+m_trainY_path = save_data_dir + "m_trainY.txt"
+m_testY_path = save_data_dir + "m_testY.txt"
 trainY = pd.read_csv(m_trainY_path,sep=' ') 
 testY = pd.read_csv(m_testY_path,sep=' ') 
 
 
-trainX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/trainX.txt'
+trainX_path = save_data_dir + "trainX.txt"
 trainX = pd.read_csv(trainX_path,sep=' ') 
 
-testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/testX.txt'
+testX_path = save_data_dir + "testX.txt"
 testX = pd.read_csv(testX_path,sep=' ') 
 
 
 
-K_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/KtestX.txt'
-K_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/m_valY.txt'
+K_testX_path = save_data_dir + "KtestX.txt"
+K_testY_path = save_data_dir + "m_valY.txt"
 K_testX = pd.read_csv(K_testX_path,sep=' ') 
 K_testY = pd.read_csv(K_testY_path,sep=' ') 
 
 
-SZBP_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_testX.txt'
-SZBP_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_KtestY.txt'
+SZBP_testX_path = save_data_dir + "SZBP_testX.txt"
+SZBP_testY_path = save_data_dir + "SZBP_testY.txt"
 SZBP_testX = pd.read_csv(SZBP_testX_path,sep=' ') 
 SZBP_testY = pd.read_csv(SZBP_testY_path,sep=' ') 
 
 
-SZBP_testX_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/SZBP_testX_HRS.txt'
+SZBP_testX_path = save_data_dir + "SZBP_testX_HRS.txt"
 SZBP_testX_HRS = pd.read_csv(SZBP_testX_path,sep=' ') 
 
 
-BP_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/m_BPY.txt'
+BP_testY_path = save_data_dir + "m_BPY.txt"
 BP_testY = pd.read_csv(BP_testY_path,sep=' ') 
 BP_testX = SZBP_testX_HRS.loc[ SZBP_testX_HRS["HighRiskStatus_v11"].isin(["BP"]) ]
 BP_testX = BP_testX.drop(["HighRiskStatus_v11"],axis=1)
 
-SZ_testY_path = '/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/m_SZY.txt'
+SZ_testY_path = save_data_dir + "m_SZY.txt"
 SZ_testY = pd.read_csv(SZ_testY_path,sep=' ') 
 SZ_testX = SZBP_testX_HRS.loc[ SZBP_testX_HRS["HighRiskStatus_v11"].isin(["SZ"]) ]
 SZ_testX = SZ_testX.drop(["HighRiskStatus_v11"],axis=1)
@@ -136,8 +142,7 @@ testSZY_norm = test_scalery.transform(testSZY_model.to_numpy())
 #%% Estimate BLR instead
 
 # set this path to wherever your ROI_models folder is located (where you copied all of the covariate & response text files to in Step 4)
-data_dir = '/home/simonyj/GPR_multivariate'
-os.makedirs(data_dir, exist_ok=True)
+os.makedirs(mgpr_out_dir, exist_ok=True)
 
 file_suffix = ["train","test","val","BP","SZ"]
 
@@ -150,25 +155,25 @@ Y_files = [Y_norm, testY_norm, valY_norm, testBPY_norm, testSZY_norm]#[trainY_mo
 for X,Y,suf in zip(X_files,Y_files,file_suffix):
 
     if suf != "forward":
-        resp_file = os.path.join(data_dir, f"resp_{suf}.txt")
+        resp_file = os.path.join(mgpr_out_dir, f"resp_{suf}.txt")
         np.savetxt(resp_file, Y)
     
-    cov_file = os.path.join(data_dir, f"cov_gpr_{suf}.txt")
+    cov_file = os.path.join(mgpr_out_dir, f"cov_gpr_{suf}.txt")
     np.savetxt(cov_file, X)
     
 
-cov_file_tr = os.path.join(data_dir, 'cov_gpr_train.txt')
-cov_file_te = os.path.join(data_dir, 'cov_gpr_test.txt')
-cov_file_val = os.path.join(data_dir, 'cov_gpr_val.txt')
-cov_file_BP = os.path.join(data_dir, 'cov_gpr_BP.txt')
-cov_file_SZ = os.path.join(data_dir, 'cov_gpr_SZ.txt')
+cov_file_tr = os.path.join(mgpr_out_dir, 'cov_gpr_train.txt')
+cov_file_te = os.path.join(mgpr_out_dir, 'cov_gpr_test.txt')
+cov_file_val = os.path.join(mgpr_out_dir, 'cov_gpr_val.txt')
+cov_file_BP = os.path.join(mgpr_out_dir, 'cov_gpr_BP.txt')
+cov_file_SZ = os.path.join(mgpr_out_dir, 'cov_gpr_SZ.txt')
 
 
-resp_file_tr = os.path.join(data_dir, 'resp_train.txt')
-resp_file_te = os.path.join(data_dir, 'resp_test.txt')
-resp_file_val = os.path.join(data_dir, 'resp_val.txt')
-resp_file_BP = os.path.join(data_dir, 'resp_BP.txt')
-resp_file_SZ = os.path.join(data_dir, 'resp_SZ.txt')
+resp_file_tr = os.path.join(mgpr_out_dir, 'resp_train.txt')
+resp_file_te = os.path.join(mgpr_out_dir, 'resp_test.txt')
+resp_file_val = os.path.join(mgpr_out_dir, 'resp_val.txt')
+resp_file_BP = os.path.join(mgpr_out_dir, 'resp_BP.txt')
+resp_file_SZ = os.path.join(mgpr_out_dir, 'resp_SZ.txt')
 
 
 
@@ -230,7 +235,7 @@ plt.xlim(Z.min(),Z.max())
 plt.title("Multivariate target group")
 plt.axvline(x=0,color='black',linestyle='--')
 
-plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/multivariate_GP_Z_scores_plot_target.png')
+plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/figures/multivariate_GP_Z_scores_plot_target.png')
 
 
 #%% Histogram plots 
@@ -262,7 +267,7 @@ ax.axvline(x=0,color='black',linestyle='--')
 
 fig.suptitle('GP based Z-scores of test groups',fontsize=15)
 
-plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/multivariate_GP_Z_scores_plot.png')
+plt.savefig('/mnt/projects/VIA11/FREESURFER/Stats/Normative_modelling/figures/multivariate_GP_Z_scores_plot.png')
 
 
 
