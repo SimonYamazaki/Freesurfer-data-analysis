@@ -979,7 +979,7 @@ lsmeans(bf1,pairwise ~ group,adjust="none")
 #data_BP_K_sex0 = data_sex0[!data_sex0$group=="SZ",]
 #data_SZ_K_sex0 = data_sex0[!data_sex0$group=="BP",]
 
-#bf1 = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_BP_K_sex0)
+#bf1 = lm(BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_BP_K)
 #lsmeans(bf1,pairwise ~ group, adjust="none")
 
 #bf1 = lmBF(formula=BrainTotalVol ~ group + age + TotalEulerNumber + site, data=data_BP_K_sex0)

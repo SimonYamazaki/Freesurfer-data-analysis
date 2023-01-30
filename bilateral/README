@@ -1,0 +1,19 @@
+All models in scripts from this directory is run on bilateral brain regions, that is the average brain measure of the left and right hemisphere (average of left and right hemisphere for each brain region indepedently).
+
+There are 3 brain measures: area, thickness and volume
+There are 3 groups: K, SZ, BP
+All models are run with and without the global variable: eICV_samseg
+
+
+The script ```freesurfer_analysis_bilateral.R``` runs models for both sex combined.
+
+The script ```freesurfer_analysis_bilateral_sex_divided.R``` runs models independently on data from each sex. Thus each model is run on roughly half the data that models are run with in ```freesurfer_analysis_bilateral.R```
+
+
+
+All models are on the form:
+
+```Global brain measure ~ group*sex + age + site + TotalEulerNumber```
+
+
+

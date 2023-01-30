@@ -13,6 +13,7 @@ library(NCmisc)
 library(lsr)
 library(readxl)
 library(ggseg3d)
+library(plotly)
 
 
 Sys.setenv("plotly_username" = "simonyj")

@@ -18,27 +18,10 @@ library(NCmisc)
 #measures in multiple groups and comparing to a control group. The script generates:
 
 
-#####
-# - ANOVA tables with models that include a group/sex interaction 
-#   an extra row of a model without the interaction is included if it turned out insignificant
-#   saved in an excel sheet with a global covariate and an excel sheet without
-
 #save paths:
 GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_GS_ANOVA_pvals_with_glob.xlsx"
 GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_GS_ANOVA_pvals_without_glob.xlsx"
 
-
-#####
-# - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
-#   saved in an excel sheet with a global covariate and an excel sheet without
-
-#save paths:
-#contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_thickness_model_contrast_with_glob.xlsx"
-#contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_thickness_model_contrast_without_glob.xlsx"
-
-
-#####
-# - Plots LSmeans based contrasts which compares BP and SZ to control
 
 #save folder for plots:
 save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral"

@@ -27,3 +27,12 @@ All scripts run separate models with and without a global covariate, e.g. ICV.
 ## Subcortical brain regions 
 
 ```freesurfer_analysis_lateral_subcortical.R``` is a script to run models on lateral (separately on left and right hemisphere) brain regions.
+
+
+## Note on residuals
+
+The residuals of each model can be extracted by ```model_object["residuals"]```
+
+
+
+

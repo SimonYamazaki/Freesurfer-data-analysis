@@ -1,0 +1,35 @@
+
+There are 4 behavioral measures: CBCL_ext, CBCL_int, CBCL_totsc and CGAS
+There are 5 global brain measures: BrainTotalVol, CortexVol, total_area, mean_thickness, eICV_samseg
+There are 3 groups: K, SZ, BP
+All models are run with and without the global variable: eICV_samseg
+
+
+```global_behavioural_analysis_A.R``` runs with a model on the form:
+
+Global brain measure ~ behavioral measure + age + sex + site + eulernumber 
+
+
+
+```global_behavioural_analysis_B.R``` runs with a model on the form:
+
+Global brain measure ~ behavioral measure + group*sex + age + site + eulernumber 
+
+
+
+```global_behavioural_analysis_C.R``` runs with a model on the form:
+
+Global brain measure ~ group*behavioral measure + group*sex + age + site + eulernumber 
+
+
+
+```global_behavioural_analysis_single_groups.R``` runs with a model on the form (but only on data from a particular group):
+
+Global brain measure ~ behavioral measure + age + sex + site + eulernumber 
+
+
+```behav_response_whole_groups.R``` and ```behav_response_single_groups.R``` run models with the behavioral measure as the response variable on the form:
+
+behavioral measure ~ group*sex + age + site + eulerNumber
+
+
