@@ -24,6 +24,9 @@ library(writexl)
 library(car)
 library(readxl)
 
+#this script generates various plots found in "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures"
+#based on model tables generated from scripts in the same folder as this script is found
+
 
 #load data
 data_csv <- read.table("VIA11_allkey_160621_FreeSurfer_pruned_20220126.csv", header = TRUE, sep = ",", dec = ".")

@@ -4,6 +4,9 @@ There are 5 global brain measures: BrainTotalVol, CortexVol, total_area, mean_th
 There are 3 groups: K, SZ, BP
 All models are run with and without the global variable: eICV_samseg
 
+Model reduction steps is shown in the generated excel files. If interaction effects is insignificant, a model without the interaction term, however, with the main effect terms kept in the model is analyzed.
+
+
 
 ```global_behavioural_analysis_A.R``` runs with a model on the form:
 

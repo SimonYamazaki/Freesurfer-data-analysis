@@ -1,0 +1,54 @@
+
+Prefixes:
+
+-"globvar": This refers to a table with statistics on the global variables, i.e. BrainTotalVol, CortexVol, total_area, mean_thickness, eICV_samseg.
+
+-"bilateral_Parcel": This refers to a table with statistics on the coritcal parcels/regions, 34 regions in total for each of the 3 measures, i.e. volume, area, thickness. Models are run on the mean of the two hemispheres for each region.
+
+-"lateral_Parcel": This refers to a table with statistics on the cortical parcels/regions, 34 regions in total for each of the 3 measures, i.e. volume, area, thickness. A separate model is run on each hemisphere for each region.
+
+-"sub_lateral_Parcel": This refers to a table with statistics on the subcortical parcels/regions. As of now the data consist of 15 regions. A separate model is run on each hemisphere.
+
+
+###### 
+There exists 8 types of files with reoccuring output format:
+
+** = folder to model tables
+* = prefix of the model table
+
+
+filetype #1: **/*_GS_ANOVA_pvals_with_glob.xlsx
+filetype #2: **/*_GS_ANOVA_pvals_without_glob.xlsx
+
+-which displays statistics of the ANOVA with models including the group/sex interaction. If the interaction is insignificant the model without the interaction is shown in the next row. One sheet for models with the a global covariate in the model and one without it.
+
+
+
+filetype #3: **/*_S_ANOVA_pvals_with_glob.xlsx
+filetype #4: **/*_S_ANOVA_pvals_without_glob.xlsx
+
+-which displays statistics of the ANOVA with models run on each sex separately. One model for each sex. One sheet for models with the a global covariate in the model and one without it.
+ 
+
+
+filetype #5: **/*_Model_contrasts_with_glob.xlsx
+filetype #6: **/*_Model_contrasts_without_glob.xlsx
+
+-which displays the model contrasts of interest on each of the models seen in filetype #3 and #4, i.e. on sex separated models. However, for models (rows in the table) with the value 2 in the sex coloumn, the contrasts are computed on the combined sex. Combined sex is achieved as the "average" sex computed using LSmeans, thus these models have sex as a covariate. The ANOVA statistics of the average sex models are to be found in corresponding filetype #1 and #2. One sheet for models with the a global covariate in the model and one without it. It also includes LSmeans estimate of each group, contrast estimates and contrast test p-value, lower confidence level (LCL) and upper confidence level (UCL) for the contrast estimate. 
+
+ANOVA+contrast_effect_sizes.xlsx
+-displays effect size measures for global measure ancova models. Coloumns 2-8 show partial eta squared values for the models run, for the variables in the model. 
+
+Coloumns cohens D for the contrast estimates of the models. Contrasts are computed as highrisk group LSmean estimate minus control group LSmean estiamte. 
+
+Coloumns show what variables the models included, and last row describes what data the models were run on, i.e. whether the models were run only on male data, only on female data or both female and male data. 
+
+
+
+NOTE: if the GS (group/sex) interaction is included in the model it means that the interaction was significant. In such cases the contrast estimates can be very misleading, thus look at contrast estimates for each sex. 
+Sex 0 is female and sex 1 is male, and if the sex indicator of both sex is 2.
+
+All code used to generate tables can be found at: https://github.com/SimonYamazaki/Freesurfer-data-analysis
+
+
+

@@ -14,18 +14,20 @@ library(lsr)
 library(readxl)
 library(ggseg3d)
 library(plotly)
+library(stringr)
 
 
 Sys.setenv("plotly_username" = "simonyj")
 Sys.setenv("plotly_api_key" = "Fjx0xgvDeX23Z2DBu49P")
 
-#save paths:
+
+
+#paths to load data from
 contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_with_glob.xlsx"
 contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_without_glob.xlsx"
-
-
 effect_sizes_path = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/ANOVA+contrast_effect_sizes.xlsx"
 
+#path to save plots
 plot_save_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral"
 
 
@@ -165,10 +167,7 @@ for (j in seq(1,3)){
 
 
 #### ggseg3d attempt
-library(stringr)
-library(ggplot2)
-library(plotly)
-library(ggseg3d)
+
 #library(ggsegExtra) #remotes::install_github("ggseg/ggsegExtra")
 #test <- make_ggseg3d_2_ggseg()
 
@@ -195,7 +194,7 @@ m = c("area","thickness","volume")
 sex = c("female","male","both") #3 sexes are defined, 0=female, 1=male, 2=both
 glob = c("without_global_var","with_global_var")
 hemi = c("left","right")
-contrast = c("BP-K", "SZ-K") #"SZ-K"#
+contrast = c("BP-K", "SZ-K")
 
 side = c("inside","outside","outside","inside")
 camera = list()
@@ -220,9 +219,6 @@ max_cohens_D = max(all_cohensd)
 min_cohens_D = min(all_cohensd)
 
 
-#j = 3 #measure
-#gg = 1 #global variable 
-#contrast = "SZ-K"
 
 for (cc in seq(1,2)){
   contrast_table[paste("fdr_pvals_",contrast[cc],sep="")] = NA
@@ -283,9 +279,9 @@ for (i in seq(1,2)){ #hemisphere
     #plots2save[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]] = paste(paste("cohensd","brain",h[i],side[kk],sex[ss],sep="_"),".png",sep="")# "cohensd_brain_lh_inside_male.png"
     
     img_path = paste("/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral/intermediate_plots/",paste("cohensd",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],sep="_"),".png",sep="")
-    #plotly_IMAGE(pls[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]], width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
+    plotly_IMAGE(pls[[h[i]]][[m[j]]][[sex[ss]]][[glob[gg]]][[side[kk]]], width = 1000, height = 1000, format = "png", scale = 2,out_file = img_path)
     
-    txt2save = paste("intermediate_plots/significant","regions",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],".txt",sep="_")#"significant_regions_lh_inside_male.txt"
+    #txt2save = paste("intermediate_plots/significant","regions",contrast[cc],sex[ss],m[j],glob[gg],h[i],side[kk],".txt",sep="_")#"significant_regions_lh_inside_male.txt"
     #fileConn<-file(txt2save)
     #writeLines(significant_regions, fileConn)
     #close(fileConn)  

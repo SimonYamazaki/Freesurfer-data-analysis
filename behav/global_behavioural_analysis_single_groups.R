@@ -17,7 +17,25 @@ library(NCmisc)
 library(rlist)
 
 #This script is intended for computation of statistics on global brain measures
-#in multiple groups and comparing to a control group with a behavioral covariate
+#based on GLMs on a single group at a time (one of: SZ, BP, Control) with a behavioral covariate
+
+# models with one of the following behavioural measures as covariate is produced: 
+#("CBCL_ext_cg_v11","CBCL_int_cg_v11","CBCL_totsc_cg_v11","CGASx_v11")
+#with the following global brain measures as response variables: 
+#("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
+
+#the following covariates are included in all models by default
+#("age","site","TotalEulerNumber")
+
+
+#returns: 
+#relevant statistics from GLMs run for each combination of response variable and behavioural measures and saved into an excel sheets 
+#files generated are: 
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effect sizes
+#For file names and directories saved into, refer to the variables run_group, save_folder, model_ANOVA_with_glob, model_ANOVA_without_glob and effect_sizes_path
+#data is loaded from the path specified in data_path
 
 
 #which group data should the model use
@@ -25,8 +43,6 @@ run_group = "K"
 
 #save folder for tables and plots:
 save_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/behav/",run_group,"/",sep="")
-#save_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/plots/global_variables/behav/",run_group,"/",sep="")
-#dir.create(file.path(dirname(save_folder_plot), basename(save_folder_plot)))
 
 #create the folders if they dont exist
 dir.create(file.path(dirname(save_folder), basename(save_folder)))

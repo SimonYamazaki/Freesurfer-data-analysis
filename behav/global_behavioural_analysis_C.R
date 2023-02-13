@@ -16,16 +16,50 @@ library(car)
 library(NCmisc)
 library(rlist)
 
-#This script is intended for computation of statistics on global brain measures
-#in multiple groups and comparing to a control group with a behavioral covariate
+#This script is intended for computation of statistics on behavioural measures
+#based on GLMs on data from all groups (to potentially find an overall group effect)
+
+#models on the form below are run:
+#Global brain measure ~ group*behavioral measure + group*sex + age + site + eulernumber 
+
+# models with one of the following behavioural measures as covariate is produced: 
+#("CBCL_ext_cg_v11","CBCL_int_cg_v11","CBCL_totsc_cg_v11","CGASx_v11")
+#with the following global brain measures as response variables: 
+#("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
+
+#the following covariates are included in all models by default
+#("age","site","TotalEulerNumber")
+
+
+#returns: 
+#relevant statistics from GLMs run for each combination of response variable and behavioural measures and saved into an excel sheets 
+#files generated are: 
+
+#GS_GB models (with group-sex and group-behavouiral measure interaction)
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+
+#S models
+# - excel sheet with variable level GLM effects run separately on data from each sex with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects run separately on data from each sex without global covariate (eICV_samseg)
+
+# - excel sheet with group contrasts for GLMs (both GS_GB and S models from above) without global covariate (eICV_samseg)
+# - excel sheet with group contrasts for GLMs (both GS_GB and S models from above) with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effect sizes
+
+#For file names and directories saved into, refer to the variables save_folder, GS_C_model_ANOVA_with_glob, GS_C_model_ANOVA_without_glob, C_model_ANOVA_with_glob, C_model_ANOVA_without_glob, C_model_contrast_with_glob, C_model_contrast_without_glob, C_effect_sizes_path
+#data is loaded from the path specified in data_path
+
+#includes sheets for whole group (with G/S interaction)
 
 
 #save folder for tables and plots:
 save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/behav/C/"
-save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/behav/C/"
+#save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/behav/C/"
+
 #create the folders if they dont exist
 dir.create(file.path(dirname(save_folder), basename(save_folder)))
-dir.create(file.path(dirname(save_folder_plot), basename(save_folder_plot)))
+#dir.create(file.path(dirname(save_folder_plot), basename(save_folder_plot)))
 
 
 

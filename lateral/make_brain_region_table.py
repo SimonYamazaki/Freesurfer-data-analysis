@@ -44,6 +44,7 @@ c = "BP-K"   #"BP-K","SZ-K"
 
 table_text = f"{s} {c} brain {m} difference from control from models {g} global covariate"
 
+total_df = pd.DataFrame()
 
 for m in measures:
     for s in sexes:
@@ -79,8 +80,18 @@ for m in measures:
                 final_df = final_df.round(3)
                 final_df.columns = final_df.columns.str.rsplit('_').str.get(0)  # strip suffix at the right end only.
                 
-                final_df.to_excel(f"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/combined_tables/{excel_name}",index=False) 
+                #final_df.to_excel(f"/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/combined_tables/{excel_name}",index=False) 
+                
+                # add some extra information to final_df before appending it to total_df 
+                final_df['measure'] = m
+                final_df['sex'] = s
+                final_df['glob'] = g
+                final_df['contrast'] = c
+                
+                total_df = total_df.append(final_df, ignore_index=True)
 
+#total_df = pd.DataFrame(total_list)
+total_df.to_excel("/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/combined_tables/all_tables_combined.xlsx",index=False) 
 
 
 #%% Add info & clean raw latex table code 

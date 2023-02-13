@@ -17,20 +17,43 @@ library(NCmisc)
 library(rlist)
 
 #This script is intended for computation of statistics on global brain measures
-#in multiple groups and comparing to a control group with a behavioral covariate
+#based on GLMs with a behavioral covariate and without any group information modelled
+
+#models on the form below are run:
+#Global brain measure ~ behavioral measure + age + sex + site + eulernumber 
+
+# models with one of the following behavioural measures as covariate is produced: 
+#("CBCL_ext_cg_v11","CBCL_int_cg_v11","CBCL_totsc_cg_v11","CGASx_v11")
+#with the following global brain measures as response variables: 
+#("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
+
+#the following covariates are included in all models by default
+#("age","site","TotalEulerNumber")
+
+
+#returns: 
+#relevant statistics from GLMs run for each combination of response variable and behavioural measures and saved into an excel sheets 
+#files generated are: 
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effect sizes
+#For file names and directories saved into, refer to the variables run_group, save_folder, A_model_ANOVA_with_glob, A_model_ANOVA_without_glob and A_effect_sizes_path
+#data is loaded from the path specified in data_path
+
+#includes one sheet with A models, one row for both sex, and one row for each sex
+#this sheet does not show group differences -> no contrasts either
 
 
 #save folder for tables and plots:
 save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/behav/A/"
-save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/behav/A/"
+#save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/behav/A/"
+
 #create the folders if they dont exist
 dir.create(file.path(dirname(save_folder), basename(save_folder)))
-dir.create(file.path(dirname(save_folder_plot), basename(save_folder_plot)))
+#dir.create(file.path(dirname(save_folder_plot), basename(save_folder_plot)))
 
 
 #A
-#includes one sheet with A models, one row for both sex, and one row for each sex
-#this sheet does not show group differences -> no contrasts either
 A_model_ANOVA_with_glob = "globvar_ANOVA_pvals_with_glob.xlsx"
 A_model_ANOVA_without_glob= "globvar_ANOVA_pvals_without_glob.xlsx"
 

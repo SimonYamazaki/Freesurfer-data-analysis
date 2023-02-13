@@ -8,7 +8,6 @@ library(gridExtra)
 library(tidyr)
 library(lsmeans)
 library(grid)
-#library(ggnewscale)
 library(writexl)
 library(car)
 library(NCmisc)
@@ -17,44 +16,42 @@ library(readxl)
 
 
 
-#This script is intended for computation of statistics on lateral regional brain 
-#volumes in multiple groups and comparing to a control group on cortical structures
-#The script generates:
+#This script is intended for computation of statistics on lateral cortical regional brain 
+#measures in multiple groups based on GLM. Also includes post-hoc comparisons to the control group.
+#a model is run for each combination of brain measure, brain region, and presence of global variable.
 
+#returns: 
+#files generated are: 
 
-#####
-# - GS_ANOVA tables with models that include a group/sex interaction 
-#   an extra row of a model without the interaction is included if the iteraction 
-#   turned out insignificant
-#   saved in an excel sheet with a global covariate and an excel sheet without
+#GS models (with group-sex interaction)
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+
+#S models
+# - excel sheet with variable level GLM effects run separately on data from each sex with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects run separately on data from each sex without global covariate (eICV_samseg)
+
+#post-hoc
+# - excel sheet with post-hoc group contrasts for GLMs (both GS and S models from above) without global covariate (eICV_samseg)
+# - excel sheet with post-hoc group contrasts for GLMs (both GS and S models from above) with global covariate (eICV_samseg)
+# - excel sheet with GLM effect sizes
+
+#For file names and directories saved into, refer to the variables GS_ANOVA_with_glob, GS_ANOVA_without_cov, ANOVA_with_cov, ANOVA_without_cov, contrast_with_cov and contrast_without_cov
+#and the save_folder and plot_folder definitions in this script
+#data is loaded from the path specified in data_path
+
 
 #save paths:
 GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_GS_ANOVA_pvals_with_glob.xlsx"
 GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_GS_ANOVA_pvals_without_glob.xlsx"
 
-#####
-# - ANOVA tables with models that are defined on sex separated data
-#   one row for each model on each sex
-#   saved in an excel sheet with a global covariate and an excel sheet without
-
-#save paths
 ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_S_ANOVA_pvals_with_glob.xlsx"
 ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_S_ANOVA_pvals_without_glob.xlsx"
 
-
-#####
-# - An excel sheet with model relevant LSmean contrasts for each of the models
-#   in the sex separated ANOVA tables
-#   saved in an excel sheet with a global covariate and an excel sheet without
-
-#save paths:
 contrast_with_glob ="/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_with_glob.xlsx"
 contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/lateral_Parcel_model_contrast_without_glob.xlsx"
 
-
 effect_sizes_path = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/lateral/ANOVA+contrast_effect_sizes.xlsx"
-
-plot_save_dir = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/lateral"
 
 
 
@@ -72,18 +69,9 @@ head(data_csv)
 summary(data_csv)
 
 #filter the data with include variable
-# - extract rows with 1 in Include_FS_studies coloumn
-#data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies == 1),]
-#data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies),]
-
-# - extract rows with 1 in Include_FS_studies_euler_outliers_excluded
-#data_csv_filtered <- data_csv_filtered[c(data_csv_filtered$Include_FS_studies_euler_outliers_excluded == 1),]
-#data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_excluded),]
-
 # - extract rows with 1 in Include_FS_studies_euler_outliers_sibpairs_out
 data_csv_filtered <- data_csv[c(data_csv$Include_FS_studies_euler_outliers_sibpairs_out == 1),]
 data_csv_filtered <- data_csv_filtered[!is.na(data_csv_filtered$Include_FS_studies_euler_outliers_sibpairs_out),]
-
 
 #rename to a shorter name for convenience
 datab = data_csv_filtered

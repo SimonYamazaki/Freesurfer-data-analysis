@@ -16,8 +16,25 @@ library(car)
 library(NCmisc)
 library(rlist)
 
-#This script is intended for computation of statistics on global brain measures
-#in multiple groups and comparing to a control group with a behavioral covariate
+#This script is intended for computation of statistics on behavioural measures
+#based on GLMs on a single group at a time (one of: SZ, BP, Control)
+
+# models with one of the following behavioural measures as response variables is produced: 
+#("CBCL_ext_cg_v11","CBCL_int_cg_v11","CBCL_totsc_cg_v11","CGASx_v11")
+#with the following global brain measures as covariates: 
+#("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
+
+#the following covariates are included in all models by default
+#("age","site","TotalEulerNumber")
+
+
+#returns: 
+#relevant statistics from GLMs run for each combination of response variable and global brain measures and saved into an excel sheets 
+#files generated are: 
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effect sizes
+#For file names and directories saved into, refer to the variables run_group, save_folder, model_ANOVA_without_glob and effect_sizes_path
+#data is loaded from the path specified in data_path
 
 
 #which group data should the model use
@@ -25,7 +42,6 @@ run_group = "BP"
 
 #save folder for tables and plots:
 save_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/behav/behav_response/",run_group,"/",sep="")
-#save_folder = paste("/mnt/projects/VIA11/FREESURFER/Stats/plots/global_variables/behav/",run_group,"/",sep="")
 #dir.create(file.path(dirname(save_folder_plot), basename(save_folder_plot)))
 
 #create the folders if they dont exist
@@ -283,6 +299,11 @@ write_xlsx(DF,paste(save_folder,effect_sizes_path,sep = ""))
 
 
 
+
+
+# test some of the models that are to be run 
+
+
 #model_eff = lm(BrainTotalVol ~ group*sex + age + site + TotalEulerNumber, data=datab)
 model_eff = lm(BrainTotalVol ~ age + site + CBCL_ext_cg_v11 + TotalEulerNumber, data=dataf[[1]])
 #emm_eff = emmeans(model_eff,specs="group")
@@ -294,9 +315,6 @@ etaSquared(model_eff, type = 3, anova = T)
 
 
 
-
-
-# test some of the models that are to be run 
 #with global covariate 
 model_bvol_glob = lm(CBCL_ext_cg_v11 ~  BrainTotalVol + sex + age + TotalEulerNumber + site, data=datab)
 Anova(model_bvol_glob,type="III")

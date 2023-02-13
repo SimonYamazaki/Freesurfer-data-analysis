@@ -15,34 +15,52 @@ library(lsr)
 #funchir::stale_package_check('/mrhome/simonyj/Freesurfer-data-analysis/global_measures/global_measures_generalized.R')
 
 #This script is intended for computation of statistics on global brain measures
-#in multiple groups and comparing to a control group. The script generates:
+#measures in multiple groups based on GLM. Also includes post-hoc comparisons to the control group.
 
 
-#####
-# - ANOVA tables with models that include a group/sex interaction 
-#   an extra row of a model without the interaction is included if it turned out insignificant
-#   saved in an excel sheet with results from models with covariate and an excel sheet without
+#returns: 
+#files generated are: 
+
+#GS models (with group-sex interaction)
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+
+#S models
+# - excel sheet with variable level GLM effects run separately on data from each sex with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects run separately on data from each sex without global covariate (eICV_samseg)
+
+#post-hoc
+# - excel sheet with post-hoc group contrasts for GLMs (both GS and S models from above)without global covariate (eICV_samseg)
+# - excel sheet with post-hoc group contrasts for GLMs (both GS and S models from above) with global covariate (eICV_samseg)
+# - excel sheet with GLM effect sizes
+
+# - group difference from control lsmeans and p-value plots 
+
+#For file names and directories saved into, refer to the variables GS_ANOVA_with_glob, GS_ANOVA_without_cov, ANOVA_with_cov, ANOVA_without_cov, contrast_with_cov and contrast_without_cov
+#and the save_folder and plot_folder definitions in this script
+#data is loaded from the path specified in data_path
+
+#Chose which data to run on by the run_group variable:
+#all data from all groups: "K_BP_SZ", 
+#only BP and control, separated into BP with axis 1 and without: "BP_axis1", 
+#only SZ and control, separated into BP with axis 1 and without: "SZ_axis1"
+
+#chose if siblings should be included with the boolean siblings variable
+
 
 #save paths:
 GS_ANOVA_with_cov = "globvar_GS_ANOVA_pvals_with_glob.xlsx"
 GS_ANOVA_without_cov = "globvar_GS_ANOVA_pvals_without_glob.xlsx"
 
-ANOVA_with_cov = "globvar_S_ANOVA_pvals_with_glob.xlsx"
-ANOVA_without_cov = "globvar_S_ANOVA_pvals_without_glob.xlsx"
+S_ANOVA_with_cov = "globvar_S_ANOVA_pvals_with_glob.xlsx"
+S_ANOVA_without_cov = "globvar_S_ANOVA_pvals_without_glob.xlsx"
 
-#####
-# - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
-#   saved in an excel sheet with a covariate and an excel sheet without
-
-#save paths:
 contrast_with_cov = "globvar_S_Model_contrasts_with_glob.xlsx"
 contrast_without_cov = "globvar_S_Model_contrasts_without_glob.xlsx"
 
-#####
-# - An excel sheet with model relevant effect sizes for each of the global models
-#   saved in an excel sheet with a global covariate and an excel sheet without
-
 effect_sizes_path = "ANOVA+contrast_effect_sizes.xlsx"
+
+
 
 #file name postfix
 ppwp_postfix = "_group_diff_pvalues_ICV"
@@ -646,8 +664,8 @@ write_xlsx(DF_xlsx_glob0,paste(save_folder,contrast_without_cov,sep = ""))
 DF_xlsx_glob0 = DF_xlsx[DF_xlsx$global_var_in_model == 0, ]
 DF_xlsx_glob1 = DF_xlsx[DF_xlsx$global_var_in_model == 1, ]
 
-write_xlsx(DF_xlsx_glob1,paste(save_folder,ANOVA_with_cov,sep = ""))
-write_xlsx(DF_xlsx_glob0,paste(save_folder,ANOVA_without_cov,sep = ""))
+write_xlsx(DF_xlsx_glob1,paste(save_folder,S_ANOVA_with_cov,sep = ""))
+write_xlsx(DF_xlsx_glob0,paste(save_folder,S_ANOVA_without_cov,sep = ""))
 
 
 ### plot ppwp (contrast p-value plot)

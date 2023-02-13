@@ -15,16 +15,35 @@ library(NCmisc)
 
 
 #This script is intended for computation of statistics on bilateral regional brain 
-#measures in multiple groups and comparing to a control group. The script generates:
+#measures in multiple groups based on GLM. Also includes post-hoc comparisons to the control group.
+#bilateral brain regions is the mean of the two hemispheres for each region
+
+#returns: 
+#files generated are: 
+
+#GS models (with group-sex interaction)
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+
+# - excel sheet with post-hoc group contrasts for GLMs without global covariate (eICV_samseg)
+# - excel sheet with post-hoc group contrasts for GLMs with global covariate (eICV_samseg)
+# NOTE: for thickness variable only, the genders are combined in the LSmeans estimates as there were no significant sex effect in general
+
+#- a plot showing LSmeans for thickness variable
+
+#For file names and directories saved into, refer to the variables GS_ANOVA_with_glob, GS_ANOVA_without_glob, contrast_with_glob and contrast_without_glob
+#data is loaded from the path specified in data_path
 
 
 #save paths:
 GS_ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_GS_ANOVA_pvals_with_glob.xlsx"
 GS_ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_GS_ANOVA_pvals_without_glob.xlsx"
 
+contrast_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_model_contrast_with_glob.xlsx"
+contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_model_contrast_without_glob.xlsx"
 
 #save folder for plots:
-save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral"
+save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral/"
 
 #prefix for the plot
 LSmeans_prefix = "LSmean_difference_thickness_gender_combined"
@@ -350,8 +369,8 @@ names(DF_thickness_xlsx) <- c("Model_yvar",
 DF_xlsx_glob0 = DF_thickness_xlsx[DF_thickness_xlsx$global_var_in_model == 0, ]
 DF_xlsx_glob1 = DF_thickness_xlsx[DF_thickness_xlsx$global_var_in_model == 1, ]
 
-#write_xlsx(DF_xlsx_glob1,contrast_with_glob)
-#write_xlsx(DF_xlsx_glob0,contrast_without_glob)
+write_xlsx(DF_xlsx_glob1,contrast_with_glob)
+write_xlsx(DF_xlsx_glob0,contrast_without_glob)
 
 
 
@@ -429,7 +448,7 @@ for (g in seq(1,2)){
 }
 top_title = paste("Bilateral LSmean difference from control from both sex: thickness")
 ps=grid.arrange(grobs=sp, top=textGrob(top_title,gp=gpar(fontsize=20)))
-ggsave(paste(LSmeans_prefix,".png",sep=""),ps,width = 10,height = 10)
+ggsave(paste(save_folder_plot,LSmeans_prefix,".png",sep=""),ps,width = 10,height = 10)
 
 
 

@@ -5,7 +5,7 @@ There are 3 groups: K, SZ, BP
 All models are run with and without the global variable: eICV_samseg
 
 
-The script ```freesurfer_analysis_bilateral.R``` runs models for both sex combined.
+The script ```freesurfer_analysis_bilateral.R``` runs models for both sex combined, i.e. GLM models with sex as an effect.
 
 The script ```freesurfer_analysis_bilateral_sex_divided.R``` runs models independently on data from each sex. Thus each model is run on roughly half the data that models are run with in ```freesurfer_analysis_bilateral.R```
 

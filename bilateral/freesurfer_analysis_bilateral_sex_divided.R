@@ -15,34 +15,35 @@ library(NCmisc)
 
 
 #This script is intended for computation of statistics on bilateral regional brain 
-#measures in multiple groups and comparing to a control group for each sex independtly.
-#The script generates:
+#measures in multiple groups and post-hoc comparisons to the control group for each sex independtly.
 
+#returns: 
+#files generated are: 
 
-#####
-# - ANOVA tables with models for each sex
-#   saved in an excel sheet with a covariate and an excel sheet without
+#S models (run on data from each sex separately)
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+
+# - excel sheet with post-hoc group contrasts for GLMs without global covariate (eICV_samseg)
+# - excel sheet with post-hoc group contrasts for GLMs with global covariate (eICV_samseg)
+
+# - LSmeans based contrast plots which compares BP and SZ to control
+#   one plot which for each measure
+
+#For file names and directories saved into, refer to the variables ANOVA_with_glob, ANOVA_without_glob, contrast_with_glob and contrast_without_glob
+#data is loaded from the path specified in data_path
+
 
 #save paths:
 ANOVA_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_ANOVA_pvals_with_glob.xlsx"
 ANOVA_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_ANOVA_pvals_without_glob.xlsx"
 
-
-#####
-# - An excel sheet with model relevant contrasts for each of the models in the ANOVA tables
-#   saved in an excel sheet with a covariate and an excel sheet without
-
-#save paths:
 contrast_with_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_model_contrast_with_glob.xlsx"
 contrast_without_glob = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/parcels/bilateral/bilateral_Parcel_S_model_contrast_without_glob.xlsx"
 
 
-#####
-# - Plots LSmeans based contrasts which compares BP and SZ to control
-#   one plot which for each measure
-
 #save folder for plots:
-save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral"
+save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/bilateral/"
 
 #prefix on the contrast plots
 LSmeans_prefix = "LSmean_difference_"
@@ -431,7 +432,7 @@ for (j in seq(1,length(m))){
   }
   top_title = paste("Bilateral LSmean difference from control: ",m[j])
   ps=grid.arrange(grobs=sp, top=textGrob(top_title,gp=gpar(fontsize=20)))
-  ggsave(paste(LSmeans_prefix,m[j],".png",sep=""),ps,width = 15,height = 10)
+  ggsave(paste(save_folder_plot,LSmeans_prefix,m[j],".png",sep=""),ps,width = 15,height = 10)
   
 }
 

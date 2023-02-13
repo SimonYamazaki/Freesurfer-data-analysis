@@ -16,13 +16,41 @@ library(NCmisc)
 library(rlist)
 
 
-#This script is intended for computation of statistics on global brain measures
-#in multiple groups and comparing to a control group. The script generates:
+#This script is intended for computation of statistics on behavioural measures
+#based on GLMs on data from all groups (which may show an overall group effect)
+
+# models with one of the following behavioural measures as response variables is produced: 
+#("CBCL_ext_cg_v11","CBCL_int_cg_v11","CBCL_totsc_cg_v11","CGASx_v11")
+#with the following global brain measures as covariates: 
+#("BrainTotalVol", "CortexVol", "total_area", "mean_thickness", "eICV_samseg")
+
+#the following covariates are included in all models by default
+#("age","site","TotalEulerNumber")
 
 
-#save folder for tables and plots:
-save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/behav/"
-save_folder_plot = "/mnt/projects/VIA11/FREESURFER/Stats/Plots/global_measures/behav/"
+#returns: 
+#relevant statistics from GLMs run for each combination of response variable and global brain measures and saved into an excel sheets 
+#files generated are: 
+# - excel sheet with variable level GLM effects without global covariate (eICV_samseg)
+# - excel sheet with variable level GLM effects with global covariate (eICV_samseg)
+# - excel sheet group contrasts for GLMs without global covariate (eICV_samseg)
+# - excel sheet group contrasts for GLMs with global covariate (eICV_samseg)
+
+#For file names and directories saved into, refer to the variables save_folder, model_ANOVA_with_glob, model_ANOVA_without_glob, model_contrast_with_glob, model_contrast_without_glob
+
+#data is loaded from the path specified in data_path
+
+
+
+#save folder for tables:
+save_folder = "/mnt/projects/VIA11/FREESURFER/Stats/Model_tables/global_variables/behav/behav_response/"
+
+model_ANOVA_with_glob = "behavvar_GS_ANOVA_pvals_with_glob.xlsx"
+model_ANOVA_without_glob = "behavvar_GS_ANOVA_pvals_without_glob.xlsx"
+
+model_contrast_with_glob = "behavvar_Model_contrasts_with_glob.xlsx"
+model_contrast_without_glob = "behavvar_Model_contrasts_without_glob.xlsx"
+
 
 
 #data path
@@ -209,9 +237,8 @@ names(DF)<-col_names
 DF_xlsx_glob0 = DF[DF$ICV_in_model == 0, ]
 DF_xlsx_glob1 = DF[DF$ICV_in_model == 1, ]
 
-#write_xlsx(DF_xlsx_glob1,paste(save_folder,"behavvar_GS_ANOVA_pvals_with_glob.xlsx",sep=""))
-#write_xlsx(DF_xlsx_glob0,paste(save_folder,"behavvar_GS_ANOVA_pvals_without_glob.xlsx",sep=""))
-
+write_xlsx(DF_xlsx_glob1,paste(save_folder,model_ANOVA_with_glob,sep=""))
+write_xlsx(DF_xlsx_glob0,paste(save_folder,model_ANOVA_without_glob,sep=""))
 
 
 
@@ -283,14 +310,13 @@ names(DF) = c("Model_yvar","BP_LSmean","K_LSmean","SZ_LSmean",
 DF_xlsx_glob0 = DF[DF$global_var_in_model == 0, ]
 DF_xlsx_glob1 = DF[DF$global_var_in_model == 1, ]
 
-write_xlsx(DF_xlsx_glob1,paste(save_folder,"behavvar_Model_contrasts_with_glob.xlsx",sep=""))
-write_xlsx(DF_xlsx_glob0,paste(save_folder,"behavvar_Model_contrasts_without_glob.xlsx",sep=""))
-
-
+write_xlsx(DF_xlsx_glob1,paste(save_folder,model_contrast_with_glob,sep=""))
+write_xlsx(DF_xlsx_glob0,paste(save_folder,model_contrast_without_glob,sep=""))
 
 
 
 # test some of the models that are to be run 
+
 #with global covariate 
 model_bvol_glob = lm(BrainTotalVol ~ group*sex + age + TotalEulerNumber + site + eICV_samseg, data=datab)
 Anova(model_bvol_glob,type="III")
